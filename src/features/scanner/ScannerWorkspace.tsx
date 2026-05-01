@@ -3,19 +3,11 @@ import { useCallback, useMemo, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
+import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
 import { captureGuideImageData, getLowConfidenceStickerIndexes, LOW_CONFIDENCE_THRESHOLD, recognizeFaceFromSamples } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
-
-const COLOR_LABEL: Record<StickerColor, string> = {
-  white: "흰색",
-  yellow: "노랑",
-  red: "빨강",
-  orange: "주황",
-  blue: "파랑",
-  green: "초록",
-};
 
 interface ScannerWorkspaceProps {
   onOpenSolver?: (stateString: string) => void;
@@ -32,6 +24,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
+  const scanGuidance = useMemo(() => getFaceScanGuidance(activeFace), [activeFace]);
   const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
 
@@ -161,6 +154,21 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           </div>
 
           <div className="stack">
+            <div className="scan-guidance-card">
+              <div className="scan-guidance-row">
+                <span>현재 면</span>
+                <strong>
+                  {activeFace} / {scanGuidance.expectedCenterLabel} 센터
+                </strong>
+              </div>
+              <p>{scanGuidance.currentInstruction}</p>
+              <div className="scan-guidance-row">
+                <span>다음</span>
+                <strong>{scanGuidance.nextFace ?? "검증"}</strong>
+              </div>
+              <p>{scanGuidance.nextInstruction}</p>
+            </div>
+
             <div>
               <h3>색상 팔레트</h3>
               <div className="palette">
