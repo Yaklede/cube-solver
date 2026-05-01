@@ -993,14 +993,23 @@ select {
 
 .method-list,
 .lesson-list,
-.algorithm-grid {
+.algorithm-grid,
+.stage-summary-grid,
+.practice-plan-grid,
+.native-device-grid,
+.device-plan-list {
   display: grid;
   gap: 10px;
 }
 
 .method-row,
 .lesson-row,
-.algorithm-card {
+.algorithm-card,
+.stage-summary-card,
+.lesson-detail-card,
+.practice-plan-card,
+.capability-card,
+.device-plan-row {
   border: 1px solid var(--border);
   border-radius: 8px;
   padding: 14px;
@@ -1012,19 +1021,202 @@ select {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  width: 100%;
+  color: inherit;
+  text-align: left;
+}
+
+button.method-row,
+button.lesson-row {
+  cursor: pointer;
+  font: inherit;
+}
+
+button.method-row:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.method-row.active,
+.lesson-row.active {
+  border-color: rgba(15, 118, 110, 0.42);
+  background: #f0fdfa;
 }
 
 .method-row p,
 .lesson-row p,
-.algorithm-card p {
+.algorithm-card p,
+.stage-summary-card p,
+.lesson-detail-card p,
+.practice-plan-card p,
+.capability-card p,
+.device-plan-row p {
   margin-bottom: 0;
 }
 
+.eyebrow {
+  display: inline-flex;
+  margin-bottom: 6px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.stage-summary-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 14px;
+}
+
+.stage-summary-card {
+  min-height: 142px;
+}
+
+.stage-summary-card span,
 .lesson-row span {
   display: block;
   margin-bottom: 4px;
   color: var(--text-muted);
   font-size: 13px;
+}
+
+.summary-metrics,
+.related-algorithms,
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.summary-metrics {
+  margin-top: 12px;
+}
+
+.summary-metrics span,
+.related-algorithms span,
+.tag-row span {
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-muted);
+  padding: 4px 8px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.lesson-detail-card {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.lesson-body {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+  color: #334155;
+  line-height: 1.55;
+}
+
+.learning-checklist,
+.checkpoint-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+  color: #334155;
+}
+
+.lesson-list.compact {
+  max-height: 420px;
+  overflow: auto;
+}
+
+.practice-plan-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.practice-plan-card {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.practice-plan-heading {
+  display: grid;
+  gap: 4px;
+}
+
+.practice-plan-heading span {
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.practice-columns {
+  display: grid;
+  gap: 8px;
+}
+
+.practice-columns > div {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.practice-columns svg {
+  color: var(--primary);
+}
+
+.practice-columns span {
+  color: #111827;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.practice-columns p {
+  grid-column: 1 / -1;
+  font-size: 13px;
+}
+
+.native-device-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.capability-card {
+  display: grid;
+  gap: 8px;
+}
+
+.capability-card svg {
+  color: var(--primary);
+}
+
+.device-plan-list {
+  margin-top: 14px;
+}
+
+.device-plan-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 180px;
+  align-items: center;
+  gap: 12px;
+}
+
+.device-plan-row span {
+  display: block;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.device-plan-row code {
+  margin: 0;
+  text-align: center;
 }
 
 .search-field {
@@ -1207,5 +1399,16 @@ select {
 
   .algorithm-grid {
     grid-template-columns: 1fr;
+  }
+
+  .stage-summary-grid,
+  .practice-plan-grid,
+  .native-device-grid,
+  .device-plan-row {
+    grid-template-columns: 1fr;
+  }
+
+  .lesson-list.compact {
+    max-height: none;
   }
 }
