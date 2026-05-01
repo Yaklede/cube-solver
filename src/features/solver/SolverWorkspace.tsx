@@ -1,8 +1,13 @@
 import { ChevronLeft, ChevronRight, Play, ScanLine } from "lucide-react";
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
+import { applyMoves } from "@/core/moves";
 import { solveCubeState } from "@/core/solver";
 import type { SolverResult } from "@/core/models";
+
+const Cube3DViewer = lazy(() =>
+  import("@/features/solver/components/Cube3DViewer").then((module) => ({ default: module.Cube3DViewer })),
+);
 
 interface SolverWorkspaceProps {
   initialStateString?: string;
@@ -32,7 +37,12 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
     setBusy(false);
   }
 
-  const activeMove = result?.moves[activeStep];
+  const visualStateString = useMemo(() => {
+    if (!result) return stateString.trim();
+    return applyMoves(result.stateString, result.moves.slice(0, activeStep));
+  }, [activeStep, result, stateString]);
+  const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
+  const isComplete = result ? activeStep >= result.moves.length : false;
 
   return (
     <section className="panel solver-panel">
@@ -67,7 +77,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <div className="solution-layout">
           <div className="solution-step">
             <span className="step-count">
-              {result.moves.length === 0 ? 0 : activeStep + 1} / {result.moves.length}
+              {isComplete ? "완료" : result.moves.length === 0 ? 0 : activeStep + 1} / {result.moves.length}
             </span>
             <strong>{activeMove?.notation ?? "완료"}</strong>
             <p>{activeMove?.koreanInstruction ?? result.summary}</p>
@@ -77,11 +87,15 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
               </p>
             ))}
             <div className="button-row">
-              <button className="button secondary" onClick={() => setActiveStep((value) => Math.max(0, value - 1))}>
+              <button className="button secondary" onClick={() => setActiveStep((value) => Math.max(0, value - 1))} disabled={activeStep === 0}>
                 <ChevronLeft size={16} />
                 이전
               </button>
-              <button className="button secondary" onClick={() => setActiveStep((value) => Math.min(result.moves.length - 1, value + 1))}>
+              <button
+                className="button secondary"
+                onClick={() => setActiveStep((value) => Math.min(result.moves.length, value + 1))}
+                disabled={isComplete}
+              >
                 다음
                 <ChevronRight size={16} />
               </button>
@@ -90,6 +104,15 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
               </button>
             </div>
           </div>
+
+          <Suspense fallback={<div className="cube-viewer cube-viewer-loading">3D 큐브 준비 중</div>}>
+            <Cube3DViewer
+              activeMove={activeMove}
+              appliedMoveCount={activeStep}
+              moves={result.moves}
+              stateString={visualStateString}
+            />
+          </Suspense>
 
           <ol className="move-list">
             {result.moves.map((move, index) => (
@@ -100,6 +123,12 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
                 </button>
               </li>
             ))}
+            <li className={isComplete ? "active" : ""}>
+              <button onClick={() => setActiveStep(result.moves.length)}>
+                <span>완료</span>
+                <small>모든 회전을 반영한 상태</small>
+              </button>
+            </li>
           </ol>
         </div>
       ) : null}

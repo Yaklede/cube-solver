@@ -35,6 +35,8 @@ src-tauri/.tauri/
 .serena/cache/
 .serena/logs/
 .serena/memories/*.tmp
+.serena/memories/progress-*.md
+.serena/memories/result-*.md
 .agents/state/
 .codex/sessions/
 .codex/tmp/

@@ -372,6 +372,11 @@ p {
   margin-top: 18px;
 }
 
+.solution-layout {
+  grid-template-columns: minmax(260px, 0.68fr) minmax(320px, 0.95fr) minmax(260px, 0.72fr);
+  align-items: start;
+}
+
 .cube-face-editor {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -675,6 +680,54 @@ select {
   padding: 18px;
 }
 
+.cube-viewer {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+}
+
+.cube-viewer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.cube-viewer-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.cube-viewer-header span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.cube-viewer-stage {
+  width: 100%;
+  min-height: 320px;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f7f8fa;
+}
+
+.cube-viewer-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.cube-viewer-loading {
+  display: grid;
+  min-height: 382px;
+  place-items: center;
+  color: var(--text-muted);
+}
+
 .solver-actions {
   margin: 12px 0 0;
 }
@@ -695,6 +748,8 @@ select {
   display: grid;
   gap: 6px;
   margin: 0;
+  max-height: 430px;
+  overflow: auto;
   padding: 0;
   list-style: none;
 }
@@ -916,6 +971,10 @@ select {
   .camera-frame {
     min-height: 360px;
     height: 360px;
+  }
+
+  .cube-viewer-stage {
+    min-height: 280px;
   }
 
   .algorithm-grid {
