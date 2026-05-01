@@ -8,6 +8,7 @@ import {
   analyzeFaceReadiness,
   AUTO_SCAN_COOLDOWN_MS,
   AUTO_SCAN_STABLE_FRAMES,
+  type CenterCalibratedRecognition,
   captureGuideImageData,
   getLowConfidenceStickerIndexes,
   LOW_CONFIDENCE_THRESHOLD,
@@ -108,11 +109,13 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
         const diagnostic = createScanDiagnostic(activeFace, samples, nextFace, readiness, result.face, result.averageConfidence);
         state.appliedSignature = signature;
         state.appliedAt = now;
-        setColorProfile(result.profile);
-        setCalibrationSamples((previous) => ({
-          ...previous,
-          [result.expectedCenterColor]: result.centerSample,
-        }));
+        if (result.calibrationApplied) {
+          setColorProfile(result.profile);
+          setCalibrationSamples((previous) => ({
+            ...previous,
+            [result.expectedCenterColor]: result.centerSample,
+          }));
+        }
         setSession((previous) => ({
           ...previous,
           faces: {
@@ -124,9 +127,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           ...previous,
           [activeFace]: diagnostic,
         }));
-        setScanMessage(
-          `${activeFace} 면이 자동 인식되었습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했습니다. 검토 후 현재 면 저장을 누르세요.`,
-        );
+        setScanMessage(getCenterCalibrationMessage(activeFace, result, "자동 인식되었습니다"));
       } catch {
         setAutoReadiness(null);
         autoScanStateRef.current.signature = "";
@@ -183,11 +184,13 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
       const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
       const nextFace = result.face;
       const diagnostic = createScanDiagnostic(activeFace, samples, beforeFace, readiness, nextFace, result.averageConfidence);
-      setColorProfile(result.profile);
-      setCalibrationSamples((previous) => ({
-        ...previous,
-        [result.expectedCenterColor]: result.centerSample,
-      }));
+      if (result.calibrationApplied) {
+        setColorProfile(result.profile);
+        setCalibrationSamples((previous) => ({
+          ...previous,
+          [result.expectedCenterColor]: result.centerSample,
+        }));
+      }
       setSession((previous) => ({
         ...previous,
         faces: {
@@ -199,11 +202,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
         ...previous,
         [activeFace]: diagnostic,
       }));
-      setScanMessage(
-        `${activeFace} 면을 인식했습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했고 평균 신뢰도는 ${Math.round(
-          result.averageConfidence * 100,
-        )}%입니다.`,
-      );
+      setScanMessage(getCenterCalibrationMessage(activeFace, result, "인식했습니다"));
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
     }
@@ -480,6 +479,15 @@ function AutoScanReadiness({ readiness, enabled }: { readiness: FaceReadiness | 
 
 function getFaceSignature(face: CubeFace): string {
   return face.stickers.map((sticker) => sticker.color).join("-");
+}
+
+function getCenterCalibrationMessage(face: FaceName, result: CenterCalibratedRecognition, action: string): string {
+  const confidence = Math.round(result.averageConfidence * 100);
+  if (result.calibrationApplied) {
+    return `${face} 면을 ${action}. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했고 평균 신뢰도는 ${confidence}%입니다.`;
+  }
+
+  return `${face} 면을 ${action}. 센터 샘플이 ${COLOR_LABEL[result.centerDetectedColor]}처럼 보여 보정은 건너뛰고 센터 색상만 ${COLOR_LABEL[result.expectedCenterColor]}로 고정했습니다. 평균 신뢰도는 ${confidence}%입니다.`;
 }
 
 function createScanDiagnostic(

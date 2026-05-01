@@ -62,9 +62,25 @@ describe("scan frame helpers", () => {
     const result = recognizeFaceWithExpectedCenterCalibration("R", samples, profile);
 
     expect(result.expectedCenterColor).toBe("red");
+    expect(result.calibrationApplied).toBe(true);
     expect(result.face.centerColor).toBe("red");
     expect(result.face.stickers[4].color).toBe("red");
     expect(classifyStickerColor(centerSample, result.profile).color).toBe("red");
     expect(result.averageConfidence).toBeGreaterThan(0.4);
+  });
+
+  it("skips center calibration when a center logo or glare reads as another color", () => {
+    const profile = createDefaultColorProfile();
+    const logoLikeCenterSample = { r: 63, g: 129, b: 201 };
+    const samples = Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.white);
+    samples[4] = logoLikeCenterSample;
+
+    const result = recognizeFaceWithExpectedCenterCalibration("U", samples, profile);
+
+    expect(result.centerDetectedColor).toBe("blue");
+    expect(result.calibrationApplied).toBe(false);
+    expect(result.face.centerColor).toBe("white");
+    expect(result.face.stickers[4].color).toBe("white");
+    expect(classifyStickerColor(logoLikeCenterSample, result.profile).color).toBe("blue");
   });
 });
