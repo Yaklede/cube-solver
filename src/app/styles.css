@@ -523,6 +523,28 @@ p {
   color: #334155;
 }
 
+.scan-resume-card {
+  display: grid;
+  gap: 4px;
+  margin: 14px 0 0;
+  border: 1px solid rgba(20, 124, 116, 0.24);
+  border-radius: 8px;
+  background: #eefaf7;
+  color: #0f3f3a;
+  padding: 12px;
+}
+
+.scan-resume-card strong,
+.scan-resume-card span {
+  display: block;
+}
+
+.scan-resume-card span {
+  color: #25645d;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
 .scan-guidance-row {
   display: flex;
   align-items: center;
@@ -817,6 +839,10 @@ select {
 
 .solver-actions {
   margin: 12px 0 0;
+}
+
+.solution-repair-actions {
+  margin-top: 12px;
 }
 
 .start-reference-control {

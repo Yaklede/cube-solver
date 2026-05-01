@@ -1,8 +1,8 @@
 import { Check, RotateCcw, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_COLORS, FACE_ORDER, updateSticker } from "@/core/cube-state";
+import { buildCubeState, createEmptyScanSession, createScanSessionFromStateString, createSolvedFace, FACE_COLORS, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
-import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
+import type { CubeFace, FaceName, RgbColor, ScanSession, StickerColor } from "@/core/models";
 import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
 import {
   analyzeFaceReadiness,
@@ -44,7 +44,10 @@ interface ScanDiagnostic {
 }
 
 interface ScannerWorkspaceProps {
-  onOpenSolver?: (stateString: string) => void;
+  initialSession?: ScanSession;
+  initialStateString?: string;
+  onOpenSolver?: (stateString: string, session: ScanSession) => void;
+  onSessionChange?: (session: ScanSession) => void;
 }
 
 interface AutoScanState {
@@ -67,8 +70,9 @@ function createAutoScanState(): AutoScanState {
   };
 }
 
-export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
-  const [session, setSession] = useState(() => createEmptyScanSession());
+export function ScannerWorkspace({ initialSession, initialStateString, onOpenSolver, onSessionChange }: ScannerWorkspaceProps) {
+  const [session, setSession] = useState(() => createInitialScanSession(initialSession, initialStateString));
+  const [resumedFromPrevious] = useState(() => Boolean(initialSession || initialStateString));
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
   const [selectedCalibrationColor, setSelectedCalibrationColor] = useState<StickerColor>("white");
   const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
@@ -84,9 +88,14 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
   const scanGuidance = useMemo(() => getFaceScanGuidance(activeFace), [activeFace]);
   const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
+  const loadedFaceCount = useMemo(() => FACE_ORDER.filter((face) => session.faces[face]).length, [session.faces]);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
   const guideStatus = autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
   const guideLabel = autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
+
+  useEffect(() => {
+    onSessionChange?.(session);
+  }, [onSessionChange, session]);
 
   const applyRecognitionFromSamples = useCallback(
     (samples: RgbColor[], beforeFace: CubeFace, readiness: FaceReadiness, action: string) => {
@@ -296,6 +305,13 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           </button>
         </div>
 
+        {resumedFromPrevious && loadedFaceCount > 0 ? (
+          <div className="scan-resume-card" role="status">
+            <strong>기존 스캔을 불러왔습니다.</strong>
+            <span>{loadedFaceCount} / {FACE_ORDER.length}면이 적재되어 있습니다. 잘못 인식된 면이나 칸만 선택해서 수정한 뒤 다시 풀이 안내로 보내세요.</span>
+          </div>
+        ) : null}
+
         <div className="face-tabs" role="tablist" aria-label="스캔할 면 선택">
           {FACE_ORDER.map((face) => (
             <button key={face} className={face === activeFace ? "tab active" : "tab"} onClick={() => setActiveFace(face)}>
@@ -396,13 +412,19 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           <h3>상태 문자열</h3>
           <code>{cubeState.stateString}</code>
           <ValidationSummary valid={cubeState.validation.valid} errors={cubeState.validation.errors} warnings={cubeState.validation.warnings} />
-          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString)} disabled={!cubeState.validation.valid}>
+          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString, session)} disabled={!cubeState.validation.valid}>
             풀이 안내로 보내기
           </button>
         </div>
       </section>
     </div>
   );
+}
+
+function createInitialScanSession(initialSession?: ScanSession, initialStateString?: string): ScanSession {
+  if (initialSession) return initialSession;
+  if (initialStateString) return createScanSessionFromStateString(initialStateString);
+  return createEmptyScanSession();
 }
 
 function ScanDiagnosticPanel({ diagnostics, activeFace }: { diagnostics: Partial<Record<FaceName, ScanDiagnostic>>; activeFace: FaceName }) {
