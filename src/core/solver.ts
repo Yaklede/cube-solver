@@ -1,6 +1,6 @@
 import * as rubiksSolverModule from "rubiks-cube-solver";
 import { SOLVED_STATE_STRING, validateCubeStateString } from "@/core/cube-state";
-import { parseAlgorithm } from "@/core/moves";
+import { applyMoves, parseAlgorithm } from "@/core/moves";
 import type { SolverResult } from "@/core/models";
 
 type RubiksSolverFunction = (stateString: string, options?: { partitioned?: boolean }) => unknown;
@@ -41,6 +41,20 @@ export async function solveCubeState(stateString: string): Promise<SolverResult>
     const rawSolution = fridrichSolve(solverState, { partitioned: true });
     const algorithm = normalizeSolverOutput(rawSolution);
     const moves = parseAlgorithm(algorithm);
+    const verifiedState = applyMoves(stateString, moves);
+    if (verifiedState !== SOLVED_STATE_STRING) {
+      return {
+        id: `solution-${Date.now()}`,
+        stateString,
+        moves: [],
+        algorithm: "",
+        status: "fallback",
+        summary: "솔버가 공식을 생성했지만 앱 검증에서 완성 상태가 되지 않았습니다. 재스캔하거나 시작 기준과 면 방향을 다시 확인하세요.",
+        generatedAt,
+        warnings: [`생성된 ${moves.length}수 공식이 3D 큐브 시뮬레이터 검증을 통과하지 못했습니다.`],
+      };
+    }
+
     return {
       id: `solution-${Date.now()}`,
       stateString,

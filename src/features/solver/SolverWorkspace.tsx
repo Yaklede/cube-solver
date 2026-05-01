@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, Play, ScanLine } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
 import { applyMoves } from "@/core/moves";
-import { buildOrientationGuide, formatOrientationInstruction } from "@/core/orientation-guide";
+import { buildOrientationGuide, formatOrientationInstruction, type OrientationMode } from "@/core/orientation-guide";
 import { solveCubeState } from "@/core/solver";
 import type { SolverResult } from "@/core/models";
 
@@ -21,6 +21,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
   const [activeStep, setActiveStep] = useState(0);
   const [busy, setBusy] = useState(false);
   const [solveMode, setSolveMode] = useState<"normal" | "recovery">("normal");
+  const [orientationMode, setOrientationMode] = useState<OrientationMode>("white-bottom");
 
   useEffect(() => {
     setStateString(initialStateString);
@@ -45,7 +46,8 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
   const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
   const hasMoves = result ? result.moves.length > 0 : false;
   const isComplete = result ? hasMoves && activeStep >= result.moves.length : false;
-  const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim()), [result, stateString]);
+  const stepLabel = result?.status === "solved" ? "완료" : !hasMoves ? "확인 필요" : isComplete ? "완료" : `${activeStep + 1}`;
+  const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim(), orientationMode), [orientationMode, result, stateString]);
   const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
 
   return (
@@ -71,6 +73,25 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <span>{solveMode === "recovery" ? "복구할 현재 상태 문자열" : "큐브 상태 문자열"}</span>
         <textarea value={stateString} onChange={(event) => setStateString(event.target.value)} rows={3} />
       </label>
+      <div className="start-reference-control">
+        <span>풀이 시작 기준</span>
+        <div className="start-reference-options" role="group" aria-label="풀이 시작 기준 선택">
+          <button
+            type="button"
+            className={orientationMode === "white-bottom" ? "active" : ""}
+            onClick={() => setOrientationMode("white-bottom")}
+          >
+            흰색 아래
+          </button>
+          <button
+            type="button"
+            className={orientationMode === "white-top" ? "active" : ""}
+            onClick={() => setOrientationMode("white-top")}
+          >
+            흰색 위
+          </button>
+        </div>
+      </div>
       <div className="button-row solver-actions">
         <button className="button secondary" onClick={() => solve("recovery")} disabled={busy}>
           실수 후 복구 풀이
@@ -81,7 +102,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <div className="solution-layout">
           <div className="solution-step">
             <span className="step-count">
-              {!hasMoves ? "확인 필요" : isComplete ? "완료" : activeStep + 1} / {result.moves.length}
+              {stepLabel} / {result.moves.length}
             </span>
             <strong>{activeMove?.notation ?? (result.status === "solved" ? "완료" : "확인 필요")}</strong>
             <p>{activeMove?.koreanInstruction ?? result.summary}</p>
@@ -129,22 +150,29 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
             />
           </Suspense>
 
-          <ol className="move-list">
-            {result.moves.map((move, index) => (
-              <li key={`${move.notation}-${index}`} className={index === activeStep ? "active" : ""}>
-                <button onClick={() => setActiveStep(index)}>
-                  <span>{move.notation}</span>
-                  <small>{move.koreanInstruction}</small>
+          {hasMoves ? (
+            <ol className="move-list">
+              {result.moves.map((move, index) => (
+                <li key={`${move.notation}-${index}`} className={index === activeStep ? "active" : ""}>
+                  <button onClick={() => setActiveStep(index)}>
+                    <span>{move.notation}</span>
+                    <small>{move.koreanInstruction}</small>
+                  </button>
+                </li>
+              ))}
+              <li className={isComplete ? "active" : ""}>
+                <button onClick={() => setActiveStep(result.moves.length)}>
+                  <span>완료</span>
+                  <small>모든 회전을 반영한 상태</small>
                 </button>
               </li>
-            ))}
-            <li className={isComplete ? "active" : ""}>
-              <button onClick={() => setActiveStep(result.moves.length)}>
-                <span>완료</span>
-                <small>모든 회전을 반영한 상태</small>
-              </button>
-            </li>
-          </ol>
+            </ol>
+          ) : (
+            <div className="move-list-empty" role="status">
+              <strong>공식 없음</strong>
+              <small>상태 검증, 시작 기준, 스캔 방향을 먼저 확인하세요.</small>
+            </div>
+          )}
         </div>
       ) : null}
     </section>
