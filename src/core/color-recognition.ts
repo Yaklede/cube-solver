@@ -1,13 +1,12 @@
 import type { ColorProfile, ColorSample, LabColor, RgbColor, StickerColor } from "@/core/models";
 
-const WARM_COLORS = new Set<StickerColor>(["red", "orange", "yellow"]);
-const WARM_HUE_WEIGHT: Record<StickerColor, number> = {
+const SATURATED_HUE_WEIGHT: Record<StickerColor, number> = {
   white: 0,
-  yellow: 0.7,
-  red: 1.35,
-  orange: 1.35,
-  blue: 0,
-  green: 0,
+  yellow: 0.95,
+  red: 1.65,
+  orange: 1.65,
+  blue: 1.05,
+  green: 1.05,
 };
 
 export const DEFAULT_COLOR_RGB: Record<StickerColor, RgbColor> = {
@@ -49,15 +48,32 @@ export function calibrateColorProfile(samples: Array<{ color: StickerColor; rgb:
   };
 }
 
+export function updateColorProfileSample(profile: ColorProfile, color: StickerColor, rgb: RgbColor): ColorProfile {
+  const sampleMap = new Map<StickerColor, RgbColor>(profile.samples.map((sample) => [sample.color, sample.rgb]));
+  sampleMap.set(color, rgb);
+  const nextProfile = calibrateColorProfile(
+    Object.entries(DEFAULT_COLOR_RGB).map(([sampleColor, defaultRgb]) => ({
+      color: sampleColor as StickerColor,
+      rgb: sampleMap.get(sampleColor as StickerColor) ?? defaultRgb,
+    })),
+  );
+
+  return {
+    ...nextProfile,
+    id: profile.id,
+    name: profile.name,
+    createdAt: profile.createdAt,
+  };
+}
+
 export function classifyStickerColor(rgb: RgbColor, profile: ColorProfile): { color: StickerColor; confidence: number; distance: number } {
   const balanced = applyWhiteBalance(rgb, profile.whiteBalance);
-  const lab = rgbToLab(balanced);
-  const hsv = rgbToHsv(balanced);
+  const sourceFeatures = getColorFeatures(balanced);
   const ranked = profile.samples
     .map((sample) => {
       const sampleRgb = applyWhiteBalance(sample.rgb, profile.whiteBalance);
-      const sampleHsv = rgbToHsv(sampleRgb);
-      const distance = labDistance(lab, sample.lab) + huePenalty(hsv, sampleHsv, sample.color);
+      const sampleFeatures = getColorFeatures(sampleRgb);
+      const distance = colorDistance(sourceFeatures, { ...sampleFeatures, lab: sample.lab }, sample.color);
       return {
         color: sample.color,
         distance,
@@ -68,7 +84,8 @@ export function classifyStickerColor(rgb: RgbColor, profile: ColorProfile): { co
   const best = ranked[0];
   const second = ranked[1];
   const separation = second ? Math.max(second.distance - best.distance, 0) : 100;
-  const confidence = Math.max(0.25, Math.min(1, separation / 48 + 0.35));
+  const absoluteFit = Math.max(0, 1 - best.distance / 130);
+  const confidence = clampRatio(0.22 + Math.min(separation / 75, 1) * 0.56 + absoluteFit * 0.22);
 
   return {
     color: best.color,
@@ -167,14 +184,43 @@ function xyzPivot(value: number): number {
   return value > 0.008856 ? Math.cbrt(value) : 7.787 * value + 16 / 116;
 }
 
-function labDistance(first: LabColor, second: LabColor): number {
-  return Math.hypot(first.l - second.l, first.a - second.a, first.b - second.b);
-}
-
 interface HsvColor {
   hue: number;
   saturation: number;
   value: number;
+}
+
+interface RgbChromaticity {
+  r: number;
+  g: number;
+  b: number;
+}
+
+interface ColorFeatures {
+  lab: LabColor;
+  hsv: HsvColor;
+  chroma: RgbChromaticity;
+}
+
+function getColorFeatures(rgb: RgbColor): ColorFeatures {
+  return {
+    lab: rgbToLab(rgb),
+    hsv: rgbToHsv(rgb),
+    chroma: rgbToChromaticity(rgb),
+  };
+}
+
+function colorDistance(source: ColorFeatures, sample: ColorFeatures, sampleColor: StickerColor): number {
+  return (
+    labDistance(source.lab, sample.lab) * 0.72 +
+    chromaticityDistance(source.chroma, sample.chroma) * 90 +
+    huePenalty(source.hsv, sample.hsv, sampleColor) +
+    saturationValuePenalty(source.hsv, sample.hsv, sampleColor)
+  );
+}
+
+function labDistance(first: LabColor, second: LabColor): number {
+  return Math.hypot(first.l - second.l, first.a - second.a, first.b - second.b);
 }
 
 function rgbToHsv(rgb: RgbColor): HsvColor {
@@ -204,13 +250,36 @@ function rgbToHsv(rgb: RgbColor): HsvColor {
 }
 
 function huePenalty(source: HsvColor, sample: HsvColor, sampleColor: StickerColor): number {
-  if (!WARM_COLORS.has(sampleColor) || source.saturation < 0.18 || sample.saturation < 0.18) return 0;
-  return hueDistance(source.hue, sample.hue) * WARM_HUE_WEIGHT[sampleColor];
+  if (sampleColor === "white" || source.saturation < 0.16 || sample.saturation < 0.16) return 0;
+  return hueDistance(source.hue, sample.hue) * SATURATED_HUE_WEIGHT[sampleColor];
+}
+
+function saturationValuePenalty(source: HsvColor, sample: HsvColor, sampleColor: StickerColor): number {
+  if (sampleColor === "white") {
+    return source.saturation * 76 + Math.max(0, 0.58 - source.value) * 24;
+  }
+
+  if (source.saturation < 0.13) return 34;
+
+  return Math.abs(source.saturation - sample.saturation) * 8 + Math.abs(source.value - sample.value) * 4;
 }
 
 function hueDistance(first: number, second: number): number {
   const distance = Math.abs(first - second) % 360;
   return Math.min(distance, 360 - distance);
+}
+
+function rgbToChromaticity(rgb: RgbColor): RgbChromaticity {
+  const total = Math.max(rgb.r + rgb.g + rgb.b, 1);
+  return {
+    r: rgb.r / total,
+    g: rgb.g / total,
+    b: rgb.b / total,
+  };
+}
+
+function chromaticityDistance(first: RgbChromaticity, second: RgbChromaticity): number {
+  return Math.hypot(first.r - second.r, first.g - second.g, first.b - second.b);
 }
 
 function luminance(rgb: RgbColor): number {
@@ -219,4 +288,8 @@ function luminance(rgb: RgbColor): number {
 
 function clamp(value: number): number {
   return Math.max(0, Math.min(255, Math.round(value)));
+}
+
+function clampRatio(value: number): number {
+  return Math.max(0, Math.min(1, value));
 }

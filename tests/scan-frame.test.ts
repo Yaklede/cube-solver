@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
-import { analyzeFaceReadiness, calculateGuideCrop, getLowConfidenceStickerIndexes, recognizeFaceFromSamples } from "@/core/scan-frame";
+import { classifyStickerColor, createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
+import {
+  analyzeFaceReadiness,
+  calculateGuideCrop,
+  getLowConfidenceStickerIndexes,
+  recognizeFaceFromSamples,
+  recognizeFaceWithExpectedCenterCalibration,
+} from "@/core/scan-frame";
 
 describe("scan frame helpers", () => {
   it("calculates a centered square crop for cover-fitted video", () => {
@@ -36,5 +42,29 @@ describe("scan frame helpers", () => {
     const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
     expect(analyzeFaceReadiness(wrongCenterFace).ready).toBe(false);
     expect(analyzeFaceReadiness(wrongCenterFace).centerMatchesExpected).toBe(false);
+  });
+
+  it("uses the expected center sticker to adapt recognition for the active face", () => {
+    const profile = createDefaultColorProfile();
+    const centerSample = { r: 190, g: 64, b: 34 };
+    const samples = [
+      { r: 232, g: 110, b: 36 },
+      DEFAULT_COLOR_RGB.red,
+      DEFAULT_COLOR_RGB.white,
+      DEFAULT_COLOR_RGB.yellow,
+      centerSample,
+      DEFAULT_COLOR_RGB.blue,
+      DEFAULT_COLOR_RGB.green,
+      DEFAULT_COLOR_RGB.red,
+      DEFAULT_COLOR_RGB.white,
+    ];
+
+    const result = recognizeFaceWithExpectedCenterCalibration("R", samples, profile);
+
+    expect(result.expectedCenterColor).toBe("red");
+    expect(result.face.centerColor).toBe("red");
+    expect(result.face.stickers[4].color).toBe("red");
+    expect(classifyStickerColor(centerSample, result.profile).color).toBe("red");
+    expect(result.averageConfidence).toBeGreaterThan(0.4);
   });
 });

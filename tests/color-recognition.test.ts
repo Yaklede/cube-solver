@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calibrateColorProfile, classifyStickerColor, createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
+import { calibrateColorProfile, classifyStickerColor, createDefaultColorProfile, DEFAULT_COLOR_RGB, updateColorProfileSample } from "@/core/color-recognition";
 
 describe("color recognition", () => {
   it("classifies calibrated sample colors", () => {
@@ -41,5 +41,20 @@ describe("color recognition", () => {
 
     expect(classifyStickerColor({ r: 184, g: 48, b: 44 }, profile).color).toBe("red");
     expect(classifyStickerColor({ r: 210, g: 92, b: 34 }, profile).color).toBe("orange");
+  });
+
+  it("uses chromaticity to keep dim colors recognizable", () => {
+    const profile = createDefaultColorProfile();
+
+    expect(classifyStickerColor({ r: 126, g: 28, b: 30 }, profile).color).toBe("red");
+    expect(classifyStickerColor({ r: 30, g: 82, b: 52 }, profile).color).toBe("green");
+    expect(classifyStickerColor({ r: 28, g: 58, b: 112 }, profile).color).toBe("blue");
+  });
+
+  it("updates a single color sample without losing the rest of the profile", () => {
+    const profile = updateColorProfileSample(createDefaultColorProfile(), "orange", { r: 194, g: 74, b: 24 });
+
+    expect(classifyStickerColor({ r: 194, g: 74, b: 24 }, profile).color).toBe("orange");
+    expect(classifyStickerColor(DEFAULT_COLOR_RGB.blue, profile).color).toBe("blue");
   });
 });
