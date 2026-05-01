@@ -43,7 +43,8 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
     return applyMoves(result.stateString, result.moves.slice(0, activeStep));
   }, [activeStep, result, stateString]);
   const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
-  const isComplete = result ? activeStep >= result.moves.length : false;
+  const hasMoves = result ? result.moves.length > 0 : false;
+  const isComplete = result ? hasMoves && activeStep >= result.moves.length : false;
   const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim()), [result, stateString]);
   const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
 
@@ -80,9 +81,9 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <div className="solution-layout">
           <div className="solution-step">
             <span className="step-count">
-              {isComplete ? "완료" : result.moves.length === 0 ? 0 : activeStep + 1} / {result.moves.length}
+              {!hasMoves ? "확인 필요" : isComplete ? "완료" : activeStep + 1} / {result.moves.length}
             </span>
-            <strong>{activeMove?.notation ?? "완료"}</strong>
+            <strong>{activeMove?.notation ?? (result.status === "solved" ? "완료" : "확인 필요")}</strong>
             <p>{activeMove?.koreanInstruction ?? result.summary}</p>
             {result.warnings.map((warning) => (
               <p className="warning" key={warning}>
@@ -109,7 +110,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
               <button
                 className="button secondary"
                 onClick={() => setActiveStep((value) => Math.min(result.moves.length, value + 1))}
-                disabled={isComplete}
+                disabled={!hasMoves || isComplete}
               >
                 다음
                 <ChevronRight size={16} />
