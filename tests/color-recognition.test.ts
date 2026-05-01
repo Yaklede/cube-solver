@@ -43,6 +43,21 @@ describe("color recognition", () => {
     expect(classifyStickerColor({ r: 210, g: 92, b: 34 }, profile).color).toBe("orange");
   });
 
+  it("separates warm-light white and yellow before manual calibration", () => {
+    const profile = createDefaultColorProfile();
+
+    expect(classifyStickerColor({ r: 238, g: 226, b: 184 }, profile).color).toBe("white");
+    expect(classifyStickerColor({ r: 236, g: 215, b: 142 }, profile).color).toBe("white");
+    expect(classifyStickerColor({ r: 232, g: 190, b: 38 }, profile).color).toBe("yellow");
+  });
+
+  it("keeps red and orange distinct when warm light reduces blue detail", () => {
+    const profile = createDefaultColorProfile();
+
+    expect(classifyStickerColor({ r: 188, g: 48, b: 34 }, profile).color).toBe("red");
+    expect(classifyStickerColor({ r: 214, g: 82, b: 24 }, profile).color).toBe("orange");
+  });
+
   it("uses chromaticity to keep dim colors recognizable", () => {
     const profile = createDefaultColorProfile();
 

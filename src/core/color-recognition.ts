@@ -215,7 +215,7 @@ function colorDistance(source: ColorFeatures, sample: ColorFeatures, sampleColor
     labDistance(source.lab, sample.lab) * 0.72 +
     chromaticityDistance(source.chroma, sample.chroma) * 90 +
     huePenalty(source.hsv, sample.hsv, sampleColor) +
-    saturationValuePenalty(source.hsv, sample.hsv, sampleColor)
+    saturationValuePenalty(source, sample.hsv, sampleColor)
   );
 }
 
@@ -254,14 +254,22 @@ function huePenalty(source: HsvColor, sample: HsvColor, sampleColor: StickerColo
   return hueDistance(source.hue, sample.hue) * SATURATED_HUE_WEIGHT[sampleColor];
 }
 
-function saturationValuePenalty(source: HsvColor, sample: HsvColor, sampleColor: StickerColor): number {
+function saturationValuePenalty(source: ColorFeatures, sample: HsvColor, sampleColor: StickerColor): number {
+  const { chroma, hsv } = source;
+
   if (sampleColor === "white") {
-    return source.saturation * 76 + Math.max(0, 0.58 - source.value) * 24;
+    const saturationAllowance = hsv.value >= 0.78 ? 0.38 : 0.18;
+    return Math.max(0, hsv.saturation - saturationAllowance) * 92 + Math.max(0, 0.58 - hsv.value) * 24;
   }
 
-  if (source.saturation < 0.13) return 34;
+  if (hsv.saturation < 0.13) return 34;
 
-  return Math.abs(source.saturation - sample.saturation) * 8 + Math.abs(source.value - sample.value) * 4;
+  const warmWhiteAsYellowPenalty =
+    sampleColor === "yellow" && hsv.value >= 0.72 && hsv.saturation < 0.56 && chroma.b > 0.16
+      ? (0.56 - hsv.saturation) * 72 + (chroma.b - 0.16) * 220
+      : 0;
+
+  return Math.abs(hsv.saturation - sample.saturation) * 8 + Math.abs(hsv.value - sample.value) * 4 + warmWhiteAsYellowPenalty;
 }
 
 function hueDistance(first: number, second: number): number {
