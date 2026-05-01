@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
-import { captureGuideImageData, recognizeFaceFromSamples } from "@/core/scan-frame";
+import { captureGuideImageData, getLowConfidenceStickerIndexes, LOW_CONFIDENCE_THRESHOLD, recognizeFaceFromSamples } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
@@ -28,6 +28,7 @@ export function ScannerWorkspace() {
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
+  const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
 
   function saveFace(face: CubeFace) {
@@ -145,7 +146,7 @@ export function ScannerWorkspace() {
             {currentFace.stickers.map((sticker) => (
               <button
                 key={sticker.id}
-                className={`sticker sticker-${sticker.color}`}
+                className={`sticker sticker-${sticker.color} ${lowConfidenceIndexes.includes(sticker.index) ? "low-confidence" : ""}`}
                 onClick={() => editSticker(sticker.index)}
                 aria-label={`${activeFace} ${sticker.index + 1}번 칸 ${COLOR_LABEL[sticker.color]}`}
               >
@@ -212,6 +213,7 @@ export function ScannerWorkspace() {
               샘플 면 저장
             </button>
             <p className="scan-feedback">{scanMessage}</p>
+            <ReviewNotice indexes={lowConfidenceIndexes} />
           </div>
         </div>
 
@@ -222,6 +224,18 @@ export function ScannerWorkspace() {
         </div>
       </section>
     </div>
+  );
+}
+
+function ReviewNotice({ indexes }: { indexes: number[] }) {
+  if (indexes.length === 0) {
+    return <p className="review-notice">신뢰도 {Math.round(LOW_CONFIDENCE_THRESHOLD * 100)}% 미만 칸이 없습니다.</p>;
+  }
+
+  return (
+    <p className="review-notice warning">
+      낮은 신뢰도 칸: {indexes.map((index) => index + 1).join(", ")}. 다시 인식하거나 팔레트로 해당 칸을 수정하세요.
+    </p>
   );
 }
 

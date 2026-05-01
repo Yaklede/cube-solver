@@ -3,6 +3,7 @@ import { classifyStickerColor } from "@/core/color-recognition";
 
 export const SCAN_GUIDE_RATIO = 0.64;
 export const SCAN_CAPTURE_SIZE = 300;
+export const LOW_CONFIDENCE_THRESHOLD = 0.55;
 
 export interface GuideCrop {
   x: number;
@@ -78,4 +79,8 @@ export function recognizeFaceFromSamples(face: FaceName, samples: RgbColor[], pr
     centerColor: stickers[4].color,
     stickers,
   };
+}
+
+export function getLowConfidenceStickerIndexes(face: CubeFace, threshold = LOW_CONFIDENCE_THRESHOLD): number[] {
+  return face.stickers.filter((sticker) => !sticker.manuallyEdited && sticker.confidence < threshold).map((sticker) => sticker.index);
 }
