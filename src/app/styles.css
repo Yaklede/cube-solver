@@ -300,6 +300,44 @@ p {
   background: rgba(127, 29, 29, 0.9);
 }
 
+.scanner-camera-column {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 10px;
+}
+
+.camera-action-bar {
+  display: grid;
+  gap: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 12px;
+}
+
+.camera-action-summary {
+  display: grid;
+  gap: 2px;
+}
+
+.camera-action-summary strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.camera-action-summary span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.camera-action-buttons {
+  display: grid;
+  grid-template-columns: minmax(96px, 1fr) minmax(112px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
 .face-tabs,
 .filters,
 .palette {
@@ -513,6 +551,14 @@ p {
   height: 16px;
 }
 
+.auto-scan-toggle.compact {
+  min-height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 10px;
+}
+
 .auto-scan-status {
   margin: 0;
   color: var(--warning);
@@ -527,6 +573,13 @@ p {
 .review-notice {
   margin: 0;
   color: #334155;
+}
+
+.scan-feedback.compact {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 13px;
 }
 
 .review-notice.warning {
@@ -713,6 +766,17 @@ select {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: #f7f8fa;
+  cursor: grab;
+  touch-action: none;
+}
+
+.cube-viewer-stage:active {
+  cursor: grabbing;
+}
+
+.cube-viewer-stage:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: 2px;
 }
 
 .cube-viewer-canvas {
@@ -726,6 +790,29 @@ select {
   min-height: 382px;
   place-items: center;
   color: var(--text-muted);
+}
+
+.cube-viewer-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.cube-viewer-control {
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #111827;
+}
+
+.cube-viewer-control:hover {
+  border-color: var(--primary);
+  color: var(--primary);
 }
 
 .solver-actions {
@@ -1018,6 +1105,19 @@ select {
   .camera-frame {
     min-height: 360px;
     height: 360px;
+  }
+
+  .scanner-camera-column {
+    position: static;
+  }
+
+  .camera-action-buttons {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .auto-scan-toggle.compact {
+    grid-column: 1 / -1;
+    justify-content: center;
   }
 
   .cube-viewer-stage {

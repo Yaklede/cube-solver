@@ -14,6 +14,7 @@ import {
   LOW_CONFIDENCE_THRESHOLD,
   recognizeFaceFromSamples,
   recognizeFaceWithExpectedCenterCalibration,
+  shouldUseAutoScanFallback,
   type FaceReadiness,
 } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
@@ -46,6 +47,26 @@ interface ScannerWorkspaceProps {
   onOpenSolver?: (stateString: string) => void;
 }
 
+interface AutoScanState {
+  signature: string;
+  stableCount: number;
+  appliedSignature: string;
+  appliedAt: number;
+  failedReadinessCount: number;
+  fallbackAppliedAt: number;
+}
+
+function createAutoScanState(): AutoScanState {
+  return {
+    signature: "",
+    stableCount: 0,
+    appliedSignature: "",
+    appliedAt: 0,
+    failedReadinessCount: 0,
+    fallbackAppliedAt: 0,
+  };
+}
+
 export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [session, setSession] = useState(() => createEmptyScanSession());
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
@@ -57,7 +78,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
   const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
   const [scanDiagnostics, setScanDiagnostics] = useState<Partial<Record<FaceName, ScanDiagnostic>>>({});
-  const autoScanStateRef = useRef({ signature: "", stableCount: 0, appliedSignature: "", appliedAt: 0 });
+  const autoScanStateRef = useRef<AutoScanState>(createAutoScanState());
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
@@ -67,8 +88,37 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const guideStatus = autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
   const guideLabel = autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
 
+  const applyRecognitionFromSamples = useCallback(
+    (samples: RgbColor[], beforeFace: CubeFace, readiness: FaceReadiness, action: string) => {
+      const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
+      const nextFace = result.face;
+      const diagnostic = createScanDiagnostic(activeFace, samples, beforeFace, readiness, nextFace, result.averageConfidence);
+      if (result.calibrationApplied) {
+        setColorProfile(result.profile);
+        setCalibrationSamples((previous) => ({
+          ...previous,
+          [result.expectedCenterColor]: result.centerSample,
+        }));
+      }
+      setSession((previous) => ({
+        ...previous,
+        faces: {
+          ...previous.faces,
+          [activeFace]: nextFace,
+        },
+      }));
+      setScanDiagnostics((previous) => ({
+        ...previous,
+        [activeFace]: diagnostic,
+      }));
+      setScanMessage(getCenterCalibrationMessage(activeFace, result, action));
+      return result;
+    },
+    [activeFace, colorProfile],
+  );
+
   useEffect(() => {
-    autoScanStateRef.current = { signature: "", stableCount: 0, appliedSignature: "", appliedAt: 0 };
+    autoScanStateRef.current = createAutoScanState();
     if (!autoScanEnabled || !cameraVideo) {
       setAutoReadiness(null);
       return;
@@ -83,13 +133,24 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
         setAutoReadiness(readiness);
 
         if (!readiness.ready) {
-          autoScanStateRef.current.signature = "";
-          autoScanStateRef.current.stableCount = 0;
+          const state = autoScanStateRef.current;
+          state.signature = "";
+          state.stableCount = 0;
+          state.failedReadinessCount += 1;
+          const now = Date.now();
+          if (shouldUseAutoScanFallback(readiness, state.failedReadinessCount, now, state.fallbackAppliedAt)) {
+            const result = applyRecognitionFromSamples(samples, nextFace, readiness, "자동 안정화 fallback으로 인식했습니다");
+            state.fallbackAppliedAt = now;
+            state.failedReadinessCount = 0;
+            state.appliedSignature = getFaceSignature(result.face);
+            state.appliedAt = now;
+          }
           return;
         }
 
         const signature = getFaceSignature(nextFace);
         const state = autoScanStateRef.current;
+        state.failedReadinessCount = 0;
         if (state.signature === signature) {
           state.stableCount += 1;
         } else {
@@ -105,38 +166,17 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
 
         if (!canApply) return;
 
-        const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
-        const diagnostic = createScanDiagnostic(activeFace, samples, nextFace, readiness, result.face, result.averageConfidence);
+        const result = applyRecognitionFromSamples(samples, nextFace, readiness, "자동 인식되었습니다");
         state.appliedSignature = signature;
         state.appliedAt = now;
-        if (result.calibrationApplied) {
-          setColorProfile(result.profile);
-          setCalibrationSamples((previous) => ({
-            ...previous,
-            [result.expectedCenterColor]: result.centerSample,
-          }));
-        }
-        setSession((previous) => ({
-          ...previous,
-          faces: {
-            ...previous.faces,
-            [activeFace]: result.face,
-          },
-        }));
-        setScanDiagnostics((previous) => ({
-          ...previous,
-          [activeFace]: diagnostic,
-        }));
-        setScanMessage(getCenterCalibrationMessage(activeFace, result, "자동 인식되었습니다"));
       } catch {
         setAutoReadiness(null);
-        autoScanStateRef.current.signature = "";
-        autoScanStateRef.current.stableCount = 0;
+        autoScanStateRef.current = createAutoScanState();
       }
     }, AUTO_SCAN_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [activeFace, autoScanEnabled, cameraVideo, colorProfile]);
+  }, [activeFace, applyRecognitionFromSamples, autoScanEnabled, cameraVideo, colorProfile]);
 
   function saveFace(face: CubeFace) {
     const currentIndex = FACE_ORDER.indexOf(activeFace);
@@ -181,28 +221,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
       const samples = sampleNineGrid(imageData);
       const beforeFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
       const readiness = analyzeFaceReadiness(beforeFace);
-      const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
-      const nextFace = result.face;
-      const diagnostic = createScanDiagnostic(activeFace, samples, beforeFace, readiness, nextFace, result.averageConfidence);
-      if (result.calibrationApplied) {
-        setColorProfile(result.profile);
-        setCalibrationSamples((previous) => ({
-          ...previous,
-          [result.expectedCenterColor]: result.centerSample,
-        }));
-      }
-      setSession((previous) => ({
-        ...previous,
-        faces: {
-          ...previous.faces,
-          [activeFace]: nextFace,
-        },
-      }));
-      setScanDiagnostics((previous) => ({
-        ...previous,
-        [activeFace]: diagnostic,
-      }));
-      setScanMessage(getCenterCalibrationMessage(activeFace, result, "인식했습니다"));
+      applyRecognitionFromSamples(samples, beforeFace, readiness, "인식했습니다");
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
     }
@@ -240,7 +259,31 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
 
   return (
     <div className="workspace-grid">
-      <CameraPreview guideStatus={guideStatus} guideLabel={guideLabel} onReady={rememberCamera} />
+      <div className="scanner-camera-column">
+        <CameraPreview guideStatus={guideStatus} guideLabel={guideLabel} onReady={rememberCamera} />
+        <div className="camera-action-bar" aria-label="카메라 빠른 인식">
+          <div className="camera-action-summary">
+            <strong>
+              {activeFace} / {scanGuidance.expectedCenterLabel} 센터
+            </strong>
+            <span>{autoScanEnabled ? guideLabel ?? "카메라 프레임 확인 중" : "자동 인식 꺼짐"}</span>
+          </div>
+          <div className="camera-action-buttons">
+            <button className="button primary" onClick={recognizeCurrentFace}>
+              <ScanLine size={16} />
+              인식
+            </button>
+            <button className="button secondary" onClick={() => saveFace(currentFace)}>
+              현재 면 저장
+            </button>
+            <label className="auto-scan-toggle compact">
+              <input type="checkbox" checked={autoScanEnabled} onChange={(event) => setAutoScanEnabled(event.target.checked)} />
+              <span>자동</span>
+            </label>
+          </div>
+          <p className="scan-feedback compact">{scanMessage}</p>
+        </div>
+      </div>
       <section className="panel">
         <div className="panel-header">
           <div>
@@ -286,10 +329,6 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
                 </strong>
               </div>
               <p>{scanGuidance.currentInstruction}</p>
-              <label className="auto-scan-toggle">
-                <input type="checkbox" checked={autoScanEnabled} onChange={(event) => setAutoScanEnabled(event.target.checked)} />
-                <span>자동 인식</span>
-              </label>
               <AutoScanReadiness readiness={autoReadiness} enabled={autoScanEnabled} />
               <div className="scan-guidance-row">
                 <span>다음</span>
@@ -344,17 +383,9 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
               </div>
             </div>
 
-            <button className="button primary" onClick={() => saveFace(currentFace)}>
-              현재 면 저장
-            </button>
-            <button className="button secondary" onClick={recognizeCurrentFace}>
-              <ScanLine size={16} />
-              카메라에서 인식
-            </button>
             <button className="button secondary" onClick={fillWithSolvedSample}>
               샘플 면 저장
             </button>
-            <p className="scan-feedback">{scanMessage}</p>
             <ReviewNotice indexes={lowConfidenceIndexes} />
           </div>
         </div>

@@ -9,6 +9,7 @@ export const AUTO_SCAN_MIN_AVERAGE_CONFIDENCE = 0.68;
 export const AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT = 2;
 export const AUTO_SCAN_STABLE_FRAMES = 3;
 export const AUTO_SCAN_COOLDOWN_MS = 1800;
+export const AUTO_SCAN_FALLBACK_FAILURE_FRAMES = 5;
 
 export interface GuideCrop {
   x: number;
@@ -163,6 +164,15 @@ export function analyzeFaceReadiness(face: CubeFace): FaceReadiness {
     detectedCenterColor,
     reason: getReadinessReason(centerMatchesExpected, averageConfidence, lowConfidenceCount),
   };
+}
+
+export function shouldUseAutoScanFallback(readiness: FaceReadiness, failedReadinessCount: number, now: number, lastFallbackAt: number): boolean {
+  return (
+    !readiness.ready &&
+    readiness.centerMatchesExpected &&
+    failedReadinessCount >= AUTO_SCAN_FALLBACK_FAILURE_FRAMES &&
+    now - lastFallbackAt >= AUTO_SCAN_COOLDOWN_MS
+  );
 }
 
 function getReadinessReason(centerMatchesExpected: boolean, averageConfidence: number, lowConfidenceCount: number): string {

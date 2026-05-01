@@ -6,6 +6,7 @@ import {
   getLowConfidenceStickerIndexes,
   recognizeFaceFromSamples,
   recognizeFaceWithExpectedCenterCalibration,
+  shouldUseAutoScanFallback,
 } from "@/core/scan-frame";
 
 describe("scan frame helpers", () => {
@@ -42,6 +43,23 @@ describe("scan frame helpers", () => {
     const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
     expect(analyzeFaceReadiness(wrongCenterFace).ready).toBe(false);
     expect(analyzeFaceReadiness(wrongCenterFace).centerMatchesExpected).toBe(false);
+  });
+
+  it("uses manual recognition fallback after repeated alignment failures only for the expected center", () => {
+    const profile = createDefaultColorProfile();
+    const lowConfidenceFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.green), profile);
+    lowConfidenceFace.stickers = lowConfidenceFace.stickers.map((sticker, index) =>
+      index === 4 ? sticker : { ...sticker, confidence: 0.2 },
+    );
+    const readiness = analyzeFaceReadiness(lowConfidenceFace);
+
+    expect(readiness.ready).toBe(false);
+    expect(readiness.centerMatchesExpected).toBe(true);
+    expect(shouldUseAutoScanFallback(readiness, 4, 3000, 0)).toBe(false);
+    expect(shouldUseAutoScanFallback(readiness, 5, 3000, 0)).toBe(true);
+
+    const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
+    expect(shouldUseAutoScanFallback(analyzeFaceReadiness(wrongCenterFace), 5, 3000, 0)).toBe(false);
   });
 
   it("uses the expected center sticker to adapt recognition for the active face", () => {
