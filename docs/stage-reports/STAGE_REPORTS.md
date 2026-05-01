@@ -374,6 +374,23 @@
 남은 문제: 실제 카메라 입력에서 사용자가 어느 면을 고쳐야 하는지 자동 추천하는 기능은 후속 개선 대상이다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
 
+## 26단계
+
+[단계 결과 보고서]
+
+단계 번호: 26
+단계 이름: 학습 대시보드와 네이티브/장치 확장 초안
+이번 단계 목표: 단순 문구 중심 학습 화면을 실제 훈련 흐름으로 보강하고, 네이티브 카메라 운영 기준과 향후 Arduino류 장치 연동 계약을 준비한다.
+완료한 작업: 레슨 상세, 단계 요약, 관련 공식 연결, D-Cross/F2L/OLL/PLL 실전 훈련 플래너, 네이티브/장치 확장 패널을 학습 화면에 추가했다. 장치 연동 도메인 계약과 단위 테스트, 장치 연동 로드맵, 네이티브 카메라 QA 시나리오를 추가했다.
+생성/수정한 파일: `src/features/learning/LearningWorkspace.tsx`, `src/core/learning.ts`, `src/core/device.ts`, `src/core/models.ts`, `src/app/styles.css`, `tests/learning.test.ts`, `tests/device.test.ts`, `docs/device-integration-roadmap.md`, `docs/desktop-build-qa.md`, `docs/plans/work/001-strengthen-cube-trainer.md`, `TASK.md`
+핵심 구현 내용: 학습 데이터를 `FlattenedLesson`, `StageSummary`, `GuidedPracticePlan`으로 조회할 수 있게 확장하고, 장치 명령은 실제 전송 전 `DeviceCommandPreview`로 안전 확인을 거치도록 설계했다.
+실행 방법: `npm run dev` 후 학습 모드 화면에서 과정, 레슨, 훈련 플래너, 네이티브/장치 확장 패널을 확인한다.
+테스트 방법: `npm run test -- tests/learning.test.ts tests/device.test.ts`, `npm run validate:all`
+테스트 결과: 대상 단위 테스트 2개 파일 8개 테스트 통과, 전체 검증 17개 파일 57개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: in-app browser에서 학습 모드, 실전 훈련 플래너, 네이티브 앱과 장치 연동 준비, OLL 케이스 생성이 렌더링되고 console error 0건을 확인했다.
+남은 문제: 실제 네이티브 앱 카메라 실기기 QA와 mock 장치 transport 구현은 다음 단계 대상이다.
+다음 단계에서 할 일: 네이티브 카메라 실기기 확인, mock transport/설정 UI 설계, PR 외부검증.
+
 ## 24단계
 
 [단계 결과 보고서]
