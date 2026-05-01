@@ -1,5 +1,15 @@
 import type { ColorProfile, ColorSample, LabColor, RgbColor, StickerColor } from "@/core/models";
 
+const WARM_COLORS = new Set<StickerColor>(["red", "orange", "yellow"]);
+const WARM_HUE_WEIGHT: Record<StickerColor, number> = {
+  white: 0,
+  yellow: 0.7,
+  red: 1.35,
+  orange: 1.35,
+  blue: 0,
+  green: 0,
+};
+
 export const DEFAULT_COLOR_RGB: Record<StickerColor, RgbColor> = {
   white: { r: 245, g: 245, b: 242 },
   yellow: { r: 245, g: 205, b: 40 },
@@ -42,11 +52,17 @@ export function calibrateColorProfile(samples: Array<{ color: StickerColor; rgb:
 export function classifyStickerColor(rgb: RgbColor, profile: ColorProfile): { color: StickerColor; confidence: number; distance: number } {
   const balanced = applyWhiteBalance(rgb, profile.whiteBalance);
   const lab = rgbToLab(balanced);
+  const hsv = rgbToHsv(balanced);
   const ranked = profile.samples
-    .map((sample) => ({
-      color: sample.color,
-      distance: labDistance(lab, sample.lab),
-    }))
+    .map((sample) => {
+      const sampleRgb = applyWhiteBalance(sample.rgb, profile.whiteBalance);
+      const sampleHsv = rgbToHsv(sampleRgb);
+      const distance = labDistance(lab, sample.lab) + huePenalty(hsv, sampleHsv, sample.color);
+      return {
+        color: sample.color,
+        distance,
+      };
+    })
     .toSorted((a, b) => a.distance - b.distance);
 
   const best = ranked[0];
@@ -78,25 +94,43 @@ function sampleRegion(imageData: ImageData, x: number, y: number, width: number,
   const endX = Math.floor(x + width * 0.65);
   const startY = Math.floor(y + height * 0.35);
   const endY = Math.floor(y + height * 0.65);
-  let r = 0;
-  let g = 0;
-  let b = 0;
-  let count = 0;
+  const pixels: RgbColor[] = [];
 
   for (let py = startY; py < endY; py += 1) {
     for (let px = startX; px < endX; px += 1) {
       const offset = (py * imageData.width + px) * 4;
-      r += imageData.data[offset];
-      g += imageData.data[offset + 1];
-      b += imageData.data[offset + 2];
-      count += 1;
+      pixels.push({
+        r: imageData.data[offset],
+        g: imageData.data[offset + 1],
+        b: imageData.data[offset + 2],
+      });
     }
   }
 
+  return averageTrimmedPixels(pixels);
+}
+
+function averageTrimmedPixels(pixels: RgbColor[]): RgbColor {
+  if (pixels.length === 0) return { r: 0, g: 0, b: 0 };
+
+  const sorted = pixels.toSorted((a, b) => luminance(a) - luminance(b));
+  const trim = Math.floor(sorted.length * 0.12);
+  const trimmed = sorted.slice(trim, sorted.length - trim || sorted.length);
+  const usable = trimmed.length > 0 ? trimmed : sorted;
+  let r = 0;
+  let g = 0;
+  let b = 0;
+
+  for (const pixel of usable) {
+    r += pixel.r;
+    g += pixel.g;
+    b += pixel.b;
+  }
+
   return {
-    r: Math.round(r / count),
-    g: Math.round(g / count),
-    b: Math.round(b / count),
+    r: Math.round(r / usable.length),
+    g: Math.round(g / usable.length),
+    b: Math.round(b / usable.length),
   };
 }
 
@@ -135,6 +169,52 @@ function xyzPivot(value: number): number {
 
 function labDistance(first: LabColor, second: LabColor): number {
   return Math.hypot(first.l - second.l, first.a - second.a, first.b - second.b);
+}
+
+interface HsvColor {
+  hue: number;
+  saturation: number;
+  value: number;
+}
+
+function rgbToHsv(rgb: RgbColor): HsvColor {
+  const r = rgb.r / 255;
+  const g = rgb.g / 255;
+  const b = rgb.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const delta = max - min;
+  let hue = 0;
+
+  if (delta !== 0) {
+    if (max === r) {
+      hue = 60 * (((g - b) / delta) % 6);
+    } else if (max === g) {
+      hue = 60 * ((b - r) / delta + 2);
+    } else {
+      hue = 60 * ((r - g) / delta + 4);
+    }
+  }
+
+  return {
+    hue: hue < 0 ? hue + 360 : hue,
+    saturation: max === 0 ? 0 : delta / max,
+    value: max,
+  };
+}
+
+function huePenalty(source: HsvColor, sample: HsvColor, sampleColor: StickerColor): number {
+  if (!WARM_COLORS.has(sampleColor) || source.saturation < 0.18 || sample.saturation < 0.18) return 0;
+  return hueDistance(source.hue, sample.hue) * WARM_HUE_WEIGHT[sampleColor];
+}
+
+function hueDistance(first: number, second: number): number {
+  const distance = Math.abs(first - second) % 360;
+  return Math.min(distance, 360 - distance);
+}
+
+function luminance(rgb: RgbColor): number {
+  return 0.2126 * rgb.r + 0.7152 * rgb.g + 0.0722 * rgb.b;
 }
 
 function clamp(value: number): number {

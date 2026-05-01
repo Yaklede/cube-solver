@@ -21,4 +21,25 @@ describe("color recognition", () => {
 
     expect(classifyStickerColor({ r: 40, g: 130, b: 80 }, profile).color).toBe("green");
   });
+
+  it("separates red and orange samples under warm lighting", () => {
+    const profile = createDefaultColorProfile();
+
+    expect(classifyStickerColor({ r: 212, g: 58, b: 42 }, profile).color).toBe("red");
+    expect(classifyStickerColor({ r: 218, g: 96, b: 35 }, profile).color).toBe("orange");
+  });
+
+  it("keeps red and orange separation after calibration", () => {
+    const profile = calibrateColorProfile([
+      { color: "white", rgb: { r: 230, g: 224, b: 214 } },
+      { color: "yellow", rgb: { r: 224, g: 188, b: 45 } },
+      { color: "red", rgb: { r: 180, g: 45, b: 42 } },
+      { color: "orange", rgb: { r: 215, g: 98, b: 36 } },
+      { color: "blue", rgb: { r: 38, g: 80, b: 150 } },
+      { color: "green", rgb: { r: 40, g: 130, b: 80 } },
+    ]);
+
+    expect(classifyStickerColor({ r: 184, g: 48, b: 44 }, profile).color).toBe("red");
+    expect(classifyStickerColor({ r: 210, g: 92, b: 34 }, profile).color).toBe("orange");
+  });
 });

@@ -254,9 +254,31 @@ p {
   border: 2px solid rgba(255, 255, 255, 0.88);
 }
 
+.scan-guide-aligning {
+  border-color: rgba(250, 204, 21, 0.94);
+}
+
+.scan-guide-ready {
+  border-color: rgba(34, 197, 94, 0.94);
+}
+
 .scan-guide-cell {
   border: 1px solid rgba(255, 255, 255, 0.76);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.scan-guide-label {
+  position: absolute;
+  left: 50%;
+  bottom: -42px;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: min(320px, 88vw);
+  border-radius: 6px;
+  background: rgba(17, 24, 39, 0.86);
+  color: #fff;
+  padding: 6px 8px;
+  font-size: 12px;
 }
 
 .camera-status {
@@ -438,12 +460,61 @@ p {
 }
 
 .calibration-summary,
+.scan-guidance-card,
 .state-output,
 .scan-feedback {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--surface-muted);
   padding: 12px;
+}
+
+.scan-guidance-card {
+  display: grid;
+  gap: 8px;
+}
+
+.scan-guidance-card p {
+  margin: 0;
+  color: #334155;
+}
+
+.scan-guidance-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.scan-guidance-row strong {
+  color: #111827;
+  font-size: 14px;
+}
+
+.auto-scan-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: fit-content;
+  color: #111827;
+  font-weight: 650;
+}
+
+.auto-scan-toggle input {
+  width: 16px;
+  height: 16px;
+}
+
+.auto-scan-status {
+  margin: 0;
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.auto-scan-status.ready {
+  color: var(--primary);
 }
 
 .scan-feedback,

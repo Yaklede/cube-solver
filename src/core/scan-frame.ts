@@ -1,14 +1,30 @@
 import type { ColorProfile, CubeFace, FaceName, RgbColor, CubeSticker } from "@/core/models";
 import { classifyStickerColor } from "@/core/color-recognition";
+import { FACE_COLORS } from "@/core/cube-state";
 
 export const SCAN_GUIDE_RATIO = 0.64;
 export const SCAN_CAPTURE_SIZE = 300;
 export const LOW_CONFIDENCE_THRESHOLD = 0.55;
+export const AUTO_SCAN_MIN_AVERAGE_CONFIDENCE = 0.68;
+export const AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT = 2;
+export const AUTO_SCAN_STABLE_FRAMES = 3;
+export const AUTO_SCAN_COOLDOWN_MS = 1800;
 
 export interface GuideCrop {
   x: number;
   y: number;
   size: number;
+}
+
+export interface FaceReadiness {
+  ready: boolean;
+  averageConfidence: number;
+  minConfidence: number;
+  lowConfidenceCount: number;
+  centerMatchesExpected: boolean;
+  expectedCenterColor: CubeSticker["color"];
+  detectedCenterColor: CubeSticker["color"];
+  reason: string;
 }
 
 export function calculateGuideCrop(
@@ -83,4 +99,34 @@ export function recognizeFaceFromSamples(face: FaceName, samples: RgbColor[], pr
 
 export function getLowConfidenceStickerIndexes(face: CubeFace, threshold = LOW_CONFIDENCE_THRESHOLD): number[] {
   return face.stickers.filter((sticker) => !sticker.manuallyEdited && sticker.confidence < threshold).map((sticker) => sticker.index);
+}
+
+export function analyzeFaceReadiness(face: CubeFace): FaceReadiness {
+  const confidences = face.stickers.map((sticker) => sticker.confidence);
+  const averageConfidence = confidences.reduce((total, confidence) => total + confidence, 0) / confidences.length;
+  const minConfidence = Math.min(...confidences);
+  const lowConfidenceCount = getLowConfidenceStickerIndexes(face).length;
+  const expectedCenterColor = FACE_COLORS[face.name];
+  const detectedCenterColor = face.stickers[4]?.color ?? face.centerColor;
+  const centerMatchesExpected = detectedCenterColor === expectedCenterColor;
+  const ready =
+    centerMatchesExpected && averageConfidence >= AUTO_SCAN_MIN_AVERAGE_CONFIDENCE && lowConfidenceCount <= AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT;
+
+  return {
+    ready,
+    averageConfidence,
+    minConfidence,
+    lowConfidenceCount,
+    centerMatchesExpected,
+    expectedCenterColor,
+    detectedCenterColor,
+    reason: getReadinessReason(centerMatchesExpected, averageConfidence, lowConfidenceCount),
+  };
+}
+
+function getReadinessReason(centerMatchesExpected: boolean, averageConfidence: number, lowConfidenceCount: number): string {
+  if (!centerMatchesExpected) return "현재 스캔할 면의 센터 색상과 다릅니다.";
+  if (averageConfidence < AUTO_SCAN_MIN_AVERAGE_CONFIDENCE) return "색상 신뢰도가 낮아 큐브를 조금 더 밝고 정면으로 맞추세요.";
+  if (lowConfidenceCount > AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT) return "낮은 신뢰도 칸이 많아 재정렬이 필요합니다.";
+  return "면이 안정적으로 맞춰졌습니다.";
 }

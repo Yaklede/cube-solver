@@ -1,21 +1,23 @@
 import { Check, RotateCcw, ScanLine } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
-import { captureGuideImageData, getLowConfidenceStickerIndexes, LOW_CONFIDENCE_THRESHOLD, recognizeFaceFromSamples } from "@/core/scan-frame";
+import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
+import {
+  analyzeFaceReadiness,
+  AUTO_SCAN_COOLDOWN_MS,
+  AUTO_SCAN_STABLE_FRAMES,
+  captureGuideImageData,
+  getLowConfidenceStickerIndexes,
+  LOW_CONFIDENCE_THRESHOLD,
+  recognizeFaceFromSamples,
+  type FaceReadiness,
+} from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
-
-const COLOR_LABEL: Record<StickerColor, string> = {
-  white: "흰색",
-  yellow: "노랑",
-  red: "빨강",
-  orange: "주황",
-  blue: "파랑",
-  green: "초록",
-};
+const AUTO_SCAN_INTERVAL_MS = 450;
 
 interface ScannerWorkspaceProps {
   onOpenSolver?: (stateString: string) => void;
@@ -27,13 +29,77 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [selectedCalibrationColor, setSelectedCalibrationColor] = useState<StickerColor>("white");
   const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
   const [scanMessage, setScanMessage] = useState("카메라 인식 전입니다. 수동 수정 또는 샘플 저장을 사용할 수 있습니다.");
+  const [autoScanEnabled, setAutoScanEnabled] = useState(true);
+  const [autoReadiness, setAutoReadiness] = useState<FaceReadiness | null>(null);
   const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
   const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
+  const autoScanStateRef = useRef({ signature: "", stableCount: 0, appliedSignature: "", appliedAt: 0 });
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
+  const scanGuidance = useMemo(() => getFaceScanGuidance(activeFace), [activeFace]);
   const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
+  const guideStatus = autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
+  const guideLabel = autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
+
+  useEffect(() => {
+    autoScanStateRef.current = { signature: "", stableCount: 0, appliedSignature: "", appliedAt: 0 };
+    if (!autoScanEnabled || !cameraVideo) {
+      setAutoReadiness(null);
+      return;
+    }
+
+    const intervalId = window.setInterval(() => {
+      try {
+        const imageData = captureGuideImageData(cameraVideo);
+        const samples = sampleNineGrid(imageData);
+        const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
+        const readiness = analyzeFaceReadiness(nextFace);
+        setAutoReadiness(readiness);
+
+        if (!readiness.ready) {
+          autoScanStateRef.current.signature = "";
+          autoScanStateRef.current.stableCount = 0;
+          return;
+        }
+
+        const signature = getFaceSignature(nextFace);
+        const state = autoScanStateRef.current;
+        if (state.signature === signature) {
+          state.stableCount += 1;
+        } else {
+          state.signature = signature;
+          state.stableCount = 1;
+        }
+
+        const now = Date.now();
+        const canApply =
+          state.stableCount >= AUTO_SCAN_STABLE_FRAMES &&
+          state.appliedSignature !== signature &&
+          now - state.appliedAt >= AUTO_SCAN_COOLDOWN_MS;
+
+        if (!canApply) return;
+
+        state.appliedSignature = signature;
+        state.appliedAt = now;
+        setSession((previous) => ({
+          ...previous,
+          faces: {
+            ...previous.faces,
+            [activeFace]: nextFace,
+          },
+        }));
+        setScanMessage(`${activeFace} 면이 자동 인식되었습니다. 검토 후 현재 면 저장을 누르세요.`);
+      } catch {
+        setAutoReadiness(null);
+        autoScanStateRef.current.signature = "";
+        autoScanStateRef.current.stableCount = 0;
+      }
+    }, AUTO_SCAN_INTERVAL_MS);
+
+    return () => window.clearInterval(intervalId);
+  }, [activeFace, autoScanEnabled, cameraVideo, colorProfile]);
 
   function saveFace(face: CubeFace) {
     const currentIndex = FACE_ORDER.indexOf(activeFace);
@@ -123,7 +189,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
 
   return (
     <div className="workspace-grid">
-      <CameraPreview onReady={rememberCamera} />
+      <CameraPreview guideStatus={guideStatus} guideLabel={guideLabel} onReady={rememberCamera} />
       <section className="panel">
         <div className="panel-header">
           <div>
@@ -161,6 +227,26 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           </div>
 
           <div className="stack">
+            <div className="scan-guidance-card">
+              <div className="scan-guidance-row">
+                <span>현재 면</span>
+                <strong>
+                  {activeFace} / {scanGuidance.expectedCenterLabel} 센터
+                </strong>
+              </div>
+              <p>{scanGuidance.currentInstruction}</p>
+              <label className="auto-scan-toggle">
+                <input type="checkbox" checked={autoScanEnabled} onChange={(event) => setAutoScanEnabled(event.target.checked)} />
+                <span>자동 인식</span>
+              </label>
+              <AutoScanReadiness readiness={autoReadiness} enabled={autoScanEnabled} />
+              <div className="scan-guidance-row">
+                <span>다음</span>
+                <strong>{scanGuidance.nextFace ?? "검증"}</strong>
+              </div>
+              <p>{scanGuidance.nextInstruction}</p>
+            </div>
+
             <div>
               <h3>색상 팔레트</h3>
               <div className="palette">
@@ -244,6 +330,21 @@ function ReviewNotice({ indexes }: { indexes: number[] }) {
       낮은 신뢰도 칸: {indexes.map((index) => index + 1).join(", ")}. 다시 인식하거나 팔레트로 해당 칸을 수정하세요.
     </p>
   );
+}
+
+function AutoScanReadiness({ readiness, enabled }: { readiness: FaceReadiness | null; enabled: boolean }) {
+  if (!enabled) return <p className="auto-scan-status">자동 인식이 꺼져 있습니다.</p>;
+  if (!readiness) return <p className="auto-scan-status">카메라 프레임을 확인하고 있습니다.</p>;
+
+  return (
+    <p className={readiness.ready ? "auto-scan-status ready" : "auto-scan-status"}>
+      {readiness.reason} 평균 신뢰도 {Math.round(readiness.averageConfidence * 100)}%, 낮은 신뢰도 {readiness.lowConfidenceCount}칸
+    </p>
+  );
+}
+
+function getFaceSignature(face: CubeFace): string {
+  return face.stickers.map((sticker) => sticker.color).join("-");
 }
 
 function buildColorProfile(samples: Partial<Record<StickerColor, RgbColor>>) {
