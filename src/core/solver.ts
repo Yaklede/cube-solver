@@ -55,12 +55,12 @@ export async function solveCubeState(stateString: string): Promise<SolverResult>
     return {
       id: `solution-${Date.now()}`,
       stateString,
-      moves: parseAlgorithm("R U R' U'"),
-      algorithm: "R U R' U'",
+      moves: [],
+      algorithm: "",
       status: "fallback",
-      summary: "솔버가 현재 상태를 해석하지 못했습니다. 재스캔 후 복구용 짧은 기본 알고리즘을 제안합니다.",
+      summary: "솔버가 현재 상태를 해석하지 못했습니다. 재스캔하거나 수동 수정으로 색상/조각 상태를 다시 확인하세요.",
       generatedAt,
-      warnings: [error instanceof Error ? error.message : "알 수 없는 솔버 오류"],
+      warnings: [getSolverFailureMessage(error)],
     };
   }
 }
@@ -91,6 +91,15 @@ function normalizeSolverOutput(rawSolution: unknown): string {
   }
 
   return tokens.join(" ");
+}
+
+function getSolverFailureMessage(error: unknown): string {
+  const message = error instanceof Error ? error.message : "";
+  if (message.includes("faces") || message.includes("undefined")) {
+    return "색상 개수는 맞지만 실제 조각 조합 또는 면 방향이 솔버가 해석할 수 없는 상태입니다.";
+  }
+
+  return "솔버가 현재 상태를 해석할 수 없습니다. 큐브 방향과 수동 수정 값을 다시 확인하세요.";
 }
 
 function resolveRubiksSolver(moduleValue: unknown): RubiksSolverFunction {
