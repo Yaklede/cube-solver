@@ -19,6 +19,12 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; icon: typeof Home }> = [
 
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
+  const [scannedStateString, setScannedStateString] = useState<string | undefined>();
+
+  function openSolverWithState(stateString: string) {
+    setScannedStateString(stateString);
+    setScreen("solver");
+  }
 
   return (
     <div className="app-shell">
@@ -45,8 +51,8 @@ export function App() {
 
       <main className="main-area">
         {screen === "home" ? <HomeScreen onNavigate={setScreen} /> : null}
-        {screen === "scan" ? <ScannerWorkspace /> : null}
-        {screen === "solver" ? <SolverWorkspace /> : null}
+        {screen === "scan" ? <ScannerWorkspace onOpenSolver={openSolverWithState} /> : null}
+        {screen === "solver" ? <SolverWorkspace initialStateString={scannedStateString} /> : null}
         {screen === "learning" ? <LearningWorkspace /> : null}
         {screen === "progress" ? <ProgressWorkspace /> : null}
         {screen === "settings" ? <SettingsWorkspace /> : null}

@@ -17,7 +17,11 @@ const COLOR_LABEL: Record<StickerColor, string> = {
   green: "초록",
 };
 
-export function ScannerWorkspace() {
+interface ScannerWorkspaceProps {
+  onOpenSolver?: (stateString: string) => void;
+}
+
+export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [session, setSession] = useState(() => createEmptyScanSession());
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
   const [selectedCalibrationColor, setSelectedCalibrationColor] = useState<StickerColor>("white");
@@ -221,6 +225,9 @@ export function ScannerWorkspace() {
           <h3>상태 문자열</h3>
           <code>{cubeState.stateString}</code>
           <ValidationSummary valid={cubeState.validation.valid} errors={cubeState.validation.errors} warnings={cubeState.validation.warnings} />
+          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString)} disabled={!cubeState.validation.valid}>
+            풀이 안내로 보내기
+          </button>
         </div>
       </section>
     </div>

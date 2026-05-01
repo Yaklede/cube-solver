@@ -1,14 +1,24 @@
 import { ChevronLeft, ChevronRight, Play } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
 import { solveCubeState } from "@/core/solver";
 import type { SolverResult } from "@/core/models";
 
-export function SolverWorkspace() {
+interface SolverWorkspaceProps {
+  initialStateString?: string;
+}
+
+export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING }: SolverWorkspaceProps) {
   const [stateString, setStateString] = useState(SOLVED_STATE_STRING);
   const [result, setResult] = useState<SolverResult | null>(null);
   const [activeStep, setActiveStep] = useState(0);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    setStateString(initialStateString);
+    setResult(null);
+    setActiveStep(0);
+  }, [initialStateString]);
 
   async function solve() {
     setBusy(true);
