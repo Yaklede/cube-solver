@@ -45,3 +45,7 @@
 - `npm run test -- tests/device.test.ts`
 - 장치가 없어도 학습 화면에서 모드별 목표와 command preview가 표시된다.
 - 실제 장치 연결 전까지는 모든 명령이 미리보기와 확인 단계에 머문다.
+
+## 구매 목록
+
+쿠팡 기준 초기 구매 목록은 `docs/hardware-purchase-list-coupang.md`를 따른다.

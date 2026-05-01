@@ -391,6 +391,23 @@
 남은 문제: 실제 네이티브 앱 카메라 실기기 QA와 mock 장치 transport 구현은 다음 단계 대상이다.
 다음 단계에서 할 일: 네이티브 카메라 실기기 확인, mock transport/설정 UI 설계, PR 외부검증.
 
+## 27단계
+
+[단계 결과 보고서]
+
+단계 번호: 27
+단계 이름: 모바일 반응형 보강과 쿠팡 하드웨어 구매 목록
+이번 단계 목표: 좁은 화면에서 앱 좌측/카드가 잘리지 않도록 반응형을 보강하고, 향후 Arduino류 큐브 장치 개발에 필요한 쿠팡 기준 구매 목록을 정리한다.
+완료한 작업: 전역 overflow 방지, shell/main/panel `min-width: 0`, 모바일 padding, 카메라 액션 버튼, calibration controls, records table, 3D viewer, start reference control의 모바일 단일 컬럼 처리를 추가했다. 쿠팡 검색 기준으로 Arduino Uno/Mega, NEMA17/42각 스텝모터, A4988/DRV8825/TMC2209, RAMPS/CNC shield, 전원, 리미트/비상정지 스위치 구매 기준을 문서화했다.
+생성/수정한 파일: `src/app/styles.css`, `docs/hardware-purchase-list-coupang.md`, `TASK.md`
+핵심 구현 내용: 모바일에서 가로 스크롤이 페이지 전체에 생기지 않도록 레이아웃 최소 폭을 풀고, 실제 overflow가 필요한 records/diagnostic 영역은 내부 스크롤로 제한했다. 하드웨어 구매는 1축 proof-of-concept와 6축 cube robot 확장 묶음으로 분리했다.
+실행 방법: `npm run dev` 후 폭이 좁은 in-app browser 또는 모바일 브라우저에서 홈/학습/스캔/풀이 화면을 확인한다.
+테스트 방법: `npm run validate:all`, in-app browser 좁은 폭 수동 확인
+테스트 결과: 전체 검증 17개 파일 57개 테스트 통과, production build 통과. in-app browser에서 홈/학습 화면 렌더링과 console error 0건을 확인했다.
+스크린샷 또는 확인 가능한 결과: 좁은 폭에서 브랜드와 홈 카드가 좌측 잘림 없이 보이고, 학습 화면의 과정 카드와 플래너가 단일 컬럼으로 렌더링된다.
+남은 문제: 실제 iOS/Android 브라우저에서 카메라 권한과 safe-area inset까지 추가 QA가 필요하다.
+다음 단계에서 할 일: 네이티브 카메라 실기기 확인, mock serial transport 구현, PR 외부검증.
+
 ## 24단계
 
 [단계 결과 보고서]
