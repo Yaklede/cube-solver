@@ -12,6 +12,7 @@ import {
   getLowConfidenceStickerIndexes,
   LOW_CONFIDENCE_THRESHOLD,
   recognizeFaceFromSamples,
+  recognizeFaceWithExpectedCenterCalibration,
   type FaceReadiness,
 } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
@@ -81,16 +82,24 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
 
         if (!canApply) return;
 
+        const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
         state.appliedSignature = signature;
         state.appliedAt = now;
+        setColorProfile(result.profile);
+        setCalibrationSamples((previous) => ({
+          ...previous,
+          [result.expectedCenterColor]: result.centerSample,
+        }));
         setSession((previous) => ({
           ...previous,
           faces: {
             ...previous.faces,
-            [activeFace]: nextFace,
+            [activeFace]: result.face,
           },
         }));
-        setScanMessage(`${activeFace} 면이 자동 인식되었습니다. 검토 후 현재 면 저장을 누르세요.`);
+        setScanMessage(
+          `${activeFace} 면이 자동 인식되었습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했습니다. 검토 후 현재 면 저장을 누르세요.`,
+        );
       } catch {
         setAutoReadiness(null);
         autoScanStateRef.current.signature = "";
@@ -142,9 +151,13 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
     try {
       const imageData = captureGuideImageData(cameraVideo);
       const samples = sampleNineGrid(imageData);
-      const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
-      const averageConfidence =
-        nextFace.stickers.reduce((total, sticker) => total + sticker.confidence, 0) / nextFace.stickers.length;
+      const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
+      const nextFace = result.face;
+      setColorProfile(result.profile);
+      setCalibrationSamples((previous) => ({
+        ...previous,
+        [result.expectedCenterColor]: result.centerSample,
+      }));
       setSession((previous) => ({
         ...previous,
         faces: {
@@ -152,7 +165,11 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           [activeFace]: nextFace,
         },
       }));
-      setScanMessage(`${activeFace} 면을 인식했습니다. 평균 신뢰도 ${Math.round(averageConfidence * 100)}%입니다.`);
+      setScanMessage(
+        `${activeFace} 면을 인식했습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했고 평균 신뢰도는 ${Math.round(
+          result.averageConfidence * 100,
+        )}%입니다.`,
+      );
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
     }
@@ -266,6 +283,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
               <p>
                 {Object.keys(calibrationSamples).length} / {COLORS.length}개 기준 색상을 저장했습니다.
               </p>
+              <p>카메라 인식 시 현재 면의 센터 색상은 보정값으로 자동 누적됩니다.</p>
               <div className="calibration-controls">
                 <select value={selectedCalibrationColor} onChange={(event) => setSelectedCalibrationColor(event.target.value as StickerColor)} aria-label="보정할 기준 색상">
                   {COLORS.map((color) => (

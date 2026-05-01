@@ -1,5 +1,5 @@
 import type { ColorProfile, CubeFace, FaceName, RgbColor, CubeSticker } from "@/core/models";
-import { classifyStickerColor } from "@/core/color-recognition";
+import { classifyStickerColor, updateColorProfileSample } from "@/core/color-recognition";
 import { FACE_COLORS } from "@/core/cube-state";
 
 export const SCAN_GUIDE_RATIO = 0.64;
@@ -25,6 +25,14 @@ export interface FaceReadiness {
   expectedCenterColor: CubeSticker["color"];
   detectedCenterColor: CubeSticker["color"];
   reason: string;
+}
+
+export interface CenterCalibratedRecognition {
+  face: CubeFace;
+  profile: ColorProfile;
+  expectedCenterColor: CubeSticker["color"];
+  centerSample: RgbColor;
+  averageConfidence: number;
 }
 
 export function calculateGuideCrop(
@@ -94,6 +102,31 @@ export function recognizeFaceFromSamples(face: FaceName, samples: RgbColor[], pr
     name: face,
     centerColor: stickers[4].color,
     stickers,
+  };
+}
+
+export function recognizeFaceWithExpectedCenterCalibration(
+  face: FaceName,
+  samples: RgbColor[],
+  profile: ColorProfile,
+): CenterCalibratedRecognition {
+  if (samples.length !== 9) {
+    throw new Error(`큐브 한 면은 9개 색상 샘플이 필요합니다. 현재 ${samples.length}개입니다.`);
+  }
+
+  const expectedCenterColor = FACE_COLORS[face];
+  const centerSample = samples[4];
+  const nextProfile = updateColorProfileSample(profile, expectedCenterColor, centerSample);
+  const recognizedFace = recognizeFaceFromSamples(face, samples, nextProfile);
+  const averageConfidence =
+    recognizedFace.stickers.reduce((total, sticker) => total + sticker.confidence, 0) / recognizedFace.stickers.length;
+
+  return {
+    face: recognizedFace,
+    profile: nextProfile,
+    expectedCenterColor,
+    centerSample,
+    averageConfidence,
   };
 }
 
