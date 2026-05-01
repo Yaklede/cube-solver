@@ -58,6 +58,14 @@ describe("color recognition", () => {
     expect(classifyStickerColor({ r: 214, g: 82, b: 24 }, profile).color).toBe("orange");
   });
 
+  it("does not classify saturated bright stickers as white", () => {
+    const profile = createDefaultColorProfile();
+
+    expect(classifyStickerColor({ r: 255, g: 91, b: 103 }, profile).color).toBe("red");
+    expect(classifyStickerColor({ r: 36, g: 212, b: 98 }, profile).color).toBe("green");
+    expect(classifyStickerColor({ r: 66, g: 131, b: 255 }, profile).color).toBe("blue");
+  });
+
   it("uses chromaticity to keep dim colors recognizable", () => {
     const profile = createDefaultColorProfile();
 

@@ -259,7 +259,13 @@ function saturationValuePenalty(source: ColorFeatures, sample: HsvColor, sampleC
 
   if (sampleColor === "white") {
     const saturationAllowance = hsv.value >= 0.78 ? 0.38 : 0.18;
-    return Math.max(0, hsv.saturation - saturationAllowance) * 92 + Math.max(0, 0.58 - hsv.value) * 24;
+    const chromaSpread = Math.max(chroma.r, chroma.g, chroma.b) - Math.min(chroma.r, chroma.g, chroma.b);
+    const chromaSpreadAllowance = hsv.value >= 0.72 ? 0.2 : 0.12;
+    return (
+      Math.max(0, hsv.saturation - saturationAllowance) * 92 +
+      Math.max(0, chromaSpread - chromaSpreadAllowance) * 260 +
+      Math.max(0, 0.58 - hsv.value) * 24
+    );
   }
 
   if (hsv.saturation < 0.13) return 34;

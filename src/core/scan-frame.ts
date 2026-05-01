@@ -32,6 +32,9 @@ export interface CenterCalibratedRecognition {
   profile: ColorProfile;
   expectedCenterColor: CubeSticker["color"];
   centerSample: RgbColor;
+  centerDetectedColor: CubeSticker["color"];
+  centerConfidence: number;
+  calibrationApplied: boolean;
   averageConfidence: number;
 }
 
@@ -116,8 +119,10 @@ export function recognizeFaceWithExpectedCenterCalibration(
 
   const expectedCenterColor = FACE_COLORS[face];
   const centerSample = samples[4];
-  const nextProfile = updateColorProfileSample(profile, expectedCenterColor, centerSample);
-  const recognizedFace = recognizeFaceFromSamples(face, samples, nextProfile);
+  const centerClassification = classifyStickerColor(centerSample, profile);
+  const calibrationApplied = centerClassification.color === expectedCenterColor;
+  const nextProfile = calibrationApplied ? updateColorProfileSample(profile, expectedCenterColor, centerSample) : profile;
+  const recognizedFace = withExpectedCenterSticker(recognizeFaceFromSamples(face, samples, nextProfile), expectedCenterColor);
   const averageConfidence =
     recognizedFace.stickers.reduce((total, sticker) => total + sticker.confidence, 0) / recognizedFace.stickers.length;
 
@@ -126,6 +131,9 @@ export function recognizeFaceWithExpectedCenterCalibration(
     profile: nextProfile,
     expectedCenterColor,
     centerSample,
+    centerDetectedColor: centerClassification.color,
+    centerConfidence: centerClassification.confidence,
+    calibrationApplied,
     averageConfidence,
   };
 }
@@ -162,4 +170,19 @@ function getReadinessReason(centerMatchesExpected: boolean, averageConfidence: n
   if (averageConfidence < AUTO_SCAN_MIN_AVERAGE_CONFIDENCE) return "색상 신뢰도가 낮아 큐브를 조금 더 밝고 정면으로 맞추세요.";
   if (lowConfidenceCount > AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT) return "낮은 신뢰도 칸이 많아 재정렬이 필요합니다.";
   return "면이 안정적으로 맞춰졌습니다.";
+}
+
+function withExpectedCenterSticker(face: CubeFace, expectedCenterColor: CubeSticker["color"]): CubeFace {
+  return {
+    ...face,
+    centerColor: expectedCenterColor,
+    stickers: face.stickers.map((sticker) => {
+      if (sticker.index !== 4) return sticker;
+      return {
+        ...sticker,
+        color: expectedCenterColor,
+        confidence: 1,
+      };
+    }),
+  };
 }

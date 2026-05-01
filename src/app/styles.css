@@ -460,6 +460,7 @@ p {
 }
 
 .calibration-summary,
+.scan-diagnostics,
 .scan-guidance-card,
 .state-output,
 .scan-feedback {
@@ -525,6 +526,91 @@ p {
 
 .review-notice.warning {
   color: var(--danger);
+}
+
+.scan-diagnostics {
+  margin-top: 18px;
+}
+
+.scan-diagnostics-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.scan-diagnostics-header p,
+.diagnostic-reason,
+.diagnostic-empty {
+  margin: 0;
+}
+
+.diagnostic-face-list,
+.diagnostic-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.diagnostic-face,
+.diagnostic-summary span {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  padding: 5px 8px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.diagnostic-face.captured {
+  border-color: rgba(15, 118, 110, 0.42);
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.diagnostic-reason {
+  margin-top: 10px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.diagnostic-empty {
+  margin-top: 12px;
+  color: var(--text-muted);
+}
+
+.diagnostic-grid {
+  display: grid;
+  gap: 4px;
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+.diagnostic-row {
+  display: grid;
+  grid-template-columns: 44px 110px 110px 110px 80px;
+  gap: 8px;
+  align-items: center;
+  min-width: 520px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 8px;
+  color: #334155;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.diagnostic-heading {
+  background: #eef1f5;
+  color: #111827;
+  font-weight: 700;
+}
+
+.diagnostic-row.mismatch {
+  border-color: rgba(185, 28, 28, 0.48);
+  background: #fff7f7;
 }
 
 .state-output {
