@@ -45,6 +45,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
   const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
   const hasMoves = result ? result.moves.length > 0 : false;
   const isComplete = result ? hasMoves && activeStep >= result.moves.length : false;
+  const stepLabel = result?.status === "solved" ? "완료" : !hasMoves ? "확인 필요" : isComplete ? "완료" : `${activeStep + 1}`;
   const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim()), [result, stateString]);
   const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
 
@@ -81,7 +82,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <div className="solution-layout">
           <div className="solution-step">
             <span className="step-count">
-              {!hasMoves ? "확인 필요" : isComplete ? "완료" : activeStep + 1} / {result.moves.length}
+              {stepLabel} / {result.moves.length}
             </span>
             <strong>{activeMove?.notation ?? (result.status === "solved" ? "완료" : "확인 필요")}</strong>
             <p>{activeMove?.koreanInstruction ?? result.summary}</p>
@@ -129,22 +130,29 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
             />
           </Suspense>
 
-          <ol className="move-list">
-            {result.moves.map((move, index) => (
-              <li key={`${move.notation}-${index}`} className={index === activeStep ? "active" : ""}>
-                <button onClick={() => setActiveStep(index)}>
-                  <span>{move.notation}</span>
-                  <small>{move.koreanInstruction}</small>
+          {hasMoves ? (
+            <ol className="move-list">
+              {result.moves.map((move, index) => (
+                <li key={`${move.notation}-${index}`} className={index === activeStep ? "active" : ""}>
+                  <button onClick={() => setActiveStep(index)}>
+                    <span>{move.notation}</span>
+                    <small>{move.koreanInstruction}</small>
+                  </button>
+                </li>
+              ))}
+              <li className={isComplete ? "active" : ""}>
+                <button onClick={() => setActiveStep(result.moves.length)}>
+                  <span>완료</span>
+                  <small>모든 회전을 반영한 상태</small>
                 </button>
               </li>
-            ))}
-            <li className={isComplete ? "active" : ""}>
-              <button onClick={() => setActiveStep(result.moves.length)}>
-                <span>완료</span>
-                <small>모든 회전을 반영한 상태</small>
-              </button>
-            </li>
-          </ol>
+            </ol>
+          ) : (
+            <div className="move-list-empty" role="status">
+              <strong>공식 없음</strong>
+              <small>상태 검증, 시작 기준, 스캔 방향을 먼저 확인하세요.</small>
+            </div>
+          )}
         </div>
       ) : null}
     </section>

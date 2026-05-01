@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
-import { applyAlgorithm } from "@/core/moves";
+import { applyAlgorithm, applyMoves } from "@/core/moves";
 import { solveCubeState } from "@/core/solver";
 
 describe("cube solver integration", () => {
@@ -10,6 +10,7 @@ describe("cube solver integration", () => {
     expect(result.status).toBe("solution");
     expect(result.moves.length).toBeGreaterThan(0);
     expect(result.warnings).toEqual([]);
+    expect(applyMoves(result.stateString, result.moves)).toBe(SOLVED_STATE_STRING);
   });
 
   it("does not expose raw solver exceptions for impossible-but-count-balanced states", async () => {
@@ -20,5 +21,14 @@ describe("cube solver integration", () => {
     expect(result.moves).toEqual([]);
     expect(result.warnings.join(" ")).not.toContain("Cannot read properties");
     expect(result.warnings.join(" ")).toContain("솔버가 해석할 수 없는 상태");
+  });
+
+  it("rejects malformed scanned strings before invoking the solver", async () => {
+    const reportedState = "DUUUUUDUUURRRRRRLBLBFFDFFDFUFLBDDDDBFLLLDLRRLRBBFBBFULD";
+    const result = await solveCubeState(reportedState);
+
+    expect(result.status).toBe("invalid");
+    expect(result.moves).toEqual([]);
+    expect(result.warnings).toContain("큐브 상태 문자열은 54자여야 합니다.");
   });
 });
