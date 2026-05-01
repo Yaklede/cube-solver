@@ -357,6 +357,23 @@
 남은 문제: 3D chunk가 512.74 kB라 장기적으로 Three.js 세부 chunk 분리 또는 경량 렌더링 전략을 검토할 수 있다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
 
+## 23단계
+
+[단계 결과 보고서]
+
+단계 번호: 23
+단계 이름: 3D 큐브 idle 정지와 단계 표기 동기화
+이번 단계 목표: 3D 큐브가 가만히 있을 때 자동 회전하지 않게 하고, 풀이 공식과 3D 패널의 단계 표기가 서로 다른 공식처럼 보이지 않게 한다.
+완료한 작업: idle 회전 속도를 0으로 고정하고, 3D 패널 헤더를 `B2 대기` 같은 공식 표기에서 `시작 상태 · 0 / 49`, `1수 반영 · 1 / 49` 형태로 변경했다.
+생성/수정한 파일: `src/features/solver/components/Cube3DViewer.tsx`, `src/features/solver/SolverWorkspace.tsx`, `tests/cube-3d-viewer.test.ts`, `TASK.md`, `README.md`, `USER_GUIDE.md`
+핵심 구현 내용: 3D 렌더 루프에서 자동 Y축 회전을 제거하고, 3D 상태는 적용된 move count만 표시하도록 분리했다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 상태 문자열을 입력하고 `풀이 생성`을 누른다.
+테스트 방법: `npm run test -- tests/cube-3d-viewer.test.ts tests/cube-visualization.test.ts`, `npm run build`, in-app browser 수동 확인.
+테스트 결과: 대상 단위 테스트 2개 파일 7개 테스트 통과, production build 통과, 브라우저에서 `다음` 후 `1수 반영 · 1 / 49` 표시 확인.
+스크린샷 또는 확인 가능한 결과: in-app browser에서 0.9초 간격 전체 화면 스크린샷 base64가 동일해 idle 회전이 없음을 확인했다.
+남은 문제: 3D chunk 크기 경고는 기존과 동일하게 후속 최적화 대상이다.
+다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
+
 ## 22단계
 
 [단계 결과 보고서]

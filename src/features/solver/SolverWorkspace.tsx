@@ -122,7 +122,6 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
 
           <Suspense fallback={<div className="cube-viewer cube-viewer-loading">3D 큐브 준비 중</div>}>
             <Cube3DViewer
-              activeMove={activeMove}
               appliedMoveCount={activeStep}
               moves={result.moves}
               stateString={visualStateString}
