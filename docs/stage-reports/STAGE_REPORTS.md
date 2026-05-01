@@ -357,6 +357,23 @@
 남은 문제: 3D chunk가 512.74 kB라 장기적으로 Three.js 세부 chunk 분리 또는 경량 렌더링 전략을 검토할 수 있다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
 
+## 25단계
+
+[단계 결과 보고서]
+
+단계 번호: 25
+단계 이름: 솔버 실패 시 기존 스캔 수정 흐름
+이번 단계 목표: 솔버가 상태를 해석하지 못했을 때 전체 6면 재스캔 없이 마지막 스캔 데이터를 다시 열어 수정할 수 있게 한다.
+완료한 작업: 앱 상위 상태에 마지막 스캔 세션을 보관하고, 솔버 실패/검증 필요 상태에서 기존 스캔을 불러오는 버튼을 추가했다. 상태 문자열만 있는 경우에도 편집 가능한 스캔 세션으로 복원하는 변환 함수를 추가했다.
+생성/수정한 파일: `src/app/App.tsx`, `src/features/scanner/ScannerWorkspace.tsx`, `src/features/solver/SolverWorkspace.tsx`, `src/core/cube-state.ts`, `src/app/styles.css`, `tests/cube-state.test.ts`, `TASK.md`, `README.md`, `USER_GUIDE.md`
+핵심 구현 내용: `ScannerWorkspace`가 `initialSession` 또는 `initialStateString`으로 시작할 수 있게 하고, `onSessionChange`로 마지막 스캔 세션을 `App`에 동기화한다. `SolverWorkspace`는 fallback/invalid 결과에서 `기존 스캔 불러와 수정`을 제공하며, 스캐너는 적재된 면 수를 안내한다.
+실행 방법: `npm run dev` 후 스캔 완료 상태에서 풀이 안내로 이동하고, 솔버 실패/검증 필요 화면에서 `기존 스캔 불러와 수정`을 누른다.
+테스트 방법: `npm run test -- tests/cube-state.test.ts tests/solver.test.ts tests/solver-verification.test.ts`, `npm run build`, in-app browser 수동 확인.
+테스트 결과: 대상 단위 테스트 3개 파일 8개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: in-app browser에서 검증 필요 상태에 `기존 스캔 불러와 수정` 버튼이 표시되고, 클릭 시 스캐너에 `기존 스캔을 불러왔습니다.` 안내와 6면 적재 상태가 표시된다.
+남은 문제: 실제 카메라 입력에서 사용자가 어느 면을 고쳐야 하는지 자동 추천하는 기능은 후속 개선 대상이다.
+다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
+
 ## 24단계
 
 [단계 결과 보고서]
