@@ -1,4 +1,6 @@
-import { useEffect, useRef } from "react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, RotateCcw } from "lucide-react";
+import { useCallback, useEffect, useRef } from "react";
+import type { KeyboardEvent, PointerEvent } from "react";
 import * as THREE from "three";
 import {
   getMoveAngle,
@@ -44,6 +46,77 @@ const SYMBOL_COLOR: Record<FaceName, string> = {
 export function Cube3DViewer({ stateString, moves, appliedMoveCount }: Cube3DViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SceneState | null>(null);
+  const dragRef = useRef<{ dragging: boolean; pointerId: number | null; x: number; y: number }>({
+    dragging: false,
+    pointerId: null,
+    x: 0,
+    y: 0,
+  });
+
+  const rotateView = useCallback((deltaX: number, deltaY: number) => {
+    const cubeRoot = sceneRef.current?.cubeRoot;
+    if (!cubeRoot) return;
+    cubeRoot.rotation.y += deltaX;
+    cubeRoot.rotation.x = clampRotation(cubeRoot.rotation.x + deltaY);
+  }, []);
+
+  const resetView = useCallback(() => {
+    const cubeRoot = sceneRef.current?.cubeRoot;
+    if (!cubeRoot) return;
+    cubeRoot.rotation.set(0, 0, 0);
+  }, []);
+
+  const startDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    dragRef.current = {
+      dragging: true,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  }, []);
+
+  const dragView = useCallback(
+    (event: PointerEvent<HTMLDivElement>) => {
+      const drag = dragRef.current;
+      if (!drag.dragging || drag.pointerId !== event.pointerId) return;
+      const deltaX = event.clientX - drag.x;
+      const deltaY = event.clientY - drag.y;
+      drag.x = event.clientX;
+      drag.y = event.clientY;
+      rotateView(deltaX * 0.008, deltaY * 0.008);
+    },
+    [rotateView],
+  );
+
+  const stopDrag = useCallback((event: PointerEvent<HTMLDivElement>) => {
+    if (dragRef.current.pointerId === event.pointerId) {
+      dragRef.current.dragging = false;
+      dragRef.current.pointerId = null;
+    }
+  }, []);
+
+  const handleStageKeyDown = useCallback(
+    (event: KeyboardEvent<HTMLDivElement>) => {
+      if (event.key === "ArrowLeft") {
+        event.preventDefault();
+        rotateView(-0.14, 0);
+      }
+      if (event.key === "ArrowRight") {
+        event.preventDefault();
+        rotateView(0.14, 0);
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        rotateView(0, -0.14);
+      }
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        rotateView(0, 0.14);
+      }
+    },
+    [rotateView],
+  );
 
   useEffect(() => {
     const host = hostRef.current;
@@ -155,13 +228,42 @@ export function Cube3DViewer({ stateString, moves, appliedMoveCount }: Cube3DVie
         <h3>3D 큐브</h3>
         <span>{formatRenderedMoveStatus(appliedMoveCount, moves.length)}</span>
       </div>
-      <div ref={hostRef} className="cube-viewer-stage" data-testid="cube-3d-stage" />
+      <div
+        ref={hostRef}
+        className="cube-viewer-stage"
+        data-testid="cube-3d-stage"
+        role="img"
+        tabIndex={0}
+        aria-label="드래그하거나 화살표 키로 3D 큐브 시점 조절"
+        onKeyDown={handleStageKeyDown}
+        onPointerCancel={stopDrag}
+        onPointerDown={startDrag}
+        onPointerMove={dragView}
+        onPointerUp={stopDrag}
+      />
+      <div className="cube-viewer-controls" aria-label="3D 큐브 시점 제어">
+        <button type="button" className="cube-viewer-control" onClick={() => rotateView(-0.28, 0)} aria-label="왼쪽으로 돌리기">
+          <ArrowLeft size={16} />
+        </button>
+        <button type="button" className="cube-viewer-control" onClick={() => rotateView(0.28, 0)} aria-label="오른쪽으로 돌리기">
+          <ArrowRight size={16} />
+        </button>
+        <button type="button" className="cube-viewer-control" onClick={() => rotateView(0, -0.28)} aria-label="위쪽 면 보기">
+          <ArrowUp size={16} />
+        </button>
+        <button type="button" className="cube-viewer-control" onClick={() => rotateView(0, 0.28)} aria-label="아래쪽 면 보기">
+          <ArrowDown size={16} />
+        </button>
+        <button type="button" className="cube-viewer-control" onClick={resetView} aria-label="시점 초기화">
+          <RotateCcw size={16} />
+        </button>
+      </div>
     </section>
   );
 }
 
 export function formatRenderedMoveStatus(appliedMoveCount: number, totalMoveCount: number): string {
-  if (totalMoveCount <= 0) return "완료 상태";
+  if (totalMoveCount <= 0) return "현재 상태";
   const safeAppliedCount = Math.min(totalMoveCount, Math.max(0, appliedMoveCount));
   if (safeAppliedCount === 0) return `시작 상태 · 0 / ${totalMoveCount}`;
   if (safeAppliedCount === totalMoveCount) return `완료 상태 · ${totalMoveCount} / ${totalMoveCount}`;
@@ -274,4 +376,9 @@ function disposeChildren(root: THREE.Object3D) {
 
 function easeOutCubic(value: number): number {
   return 1 - (1 - value) ** 3;
+}
+
+function clampRotation(value: number): number {
+  const limit = Math.PI / 2.4;
+  return Math.max(-limit, Math.min(limit, value));
 }
