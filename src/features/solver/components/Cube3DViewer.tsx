@@ -4,8 +4,11 @@ import {
   getMoveAngle,
   getMoveAxis,
   getMoveLayer,
+  getStickerRenderPosition,
   STICKER_PLACEMENTS,
+  VISUAL_CUBIE_SIZE,
   VISUAL_FACE_COLORS,
+  VISUAL_LOGICAL_SCALE,
 } from "@/core/cube-visualization";
 import type { FaceName, Move } from "@/core/models";
 
@@ -28,9 +31,6 @@ interface SceneState {
 }
 
 const STICKER_SIZE = 0.58;
-const CUBIE_SIZE = 0.62;
-const LOGICAL_SCALE = 0.72;
-const SURFACE_OFFSET = 0.035;
 
 const SYMBOL_COLOR: Record<FaceName, string> = {
   U: VISUAL_FACE_COLORS.U,
@@ -205,14 +205,14 @@ function renderCubeState(root: THREE.Group, stateString: string) {
 }
 
 function addCubies(root: THREE.Group) {
-  const geometry = new THREE.BoxGeometry(CUBIE_SIZE, CUBIE_SIZE, CUBIE_SIZE);
+  const geometry = new THREE.BoxGeometry(VISUAL_CUBIE_SIZE, VISUAL_CUBIE_SIZE, VISUAL_CUBIE_SIZE);
   const material = new THREE.MeshStandardMaterial({ color: "#111827", roughness: 0.74, metalness: 0.02 });
 
   for (const x of [-1, 0, 1]) {
     for (const y of [-1, 0, 1]) {
       for (const z of [-1, 0, 1]) {
         const cubie = new THREE.Mesh(geometry, material);
-        cubie.position.set(x * LOGICAL_SCALE, y * LOGICAL_SCALE, z * LOGICAL_SCALE);
+        cubie.position.set(x * VISUAL_LOGICAL_SCALE, y * VISUAL_LOGICAL_SCALE, z * VISUAL_LOGICAL_SCALE);
         cubie.userData.logicalPosition = [x, y, z];
         root.add(cubie);
       }
@@ -232,11 +232,7 @@ function addStickers(root: THREE.Group, stateString: string) {
     });
     const sticker = new THREE.Mesh(geometry, material);
     const normal = new THREE.Vector3(...placement.normal);
-    sticker.position.set(
-      placement.position[0] * LOGICAL_SCALE + normal.x * SURFACE_OFFSET,
-      placement.position[1] * LOGICAL_SCALE + normal.y * SURFACE_OFFSET,
-      placement.position[2] * LOGICAL_SCALE + normal.z * SURFACE_OFFSET,
-    );
+    sticker.position.set(...getStickerRenderPosition(placement));
     sticker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), normal);
     sticker.userData.logicalPosition = placement.position;
     root.add(sticker);

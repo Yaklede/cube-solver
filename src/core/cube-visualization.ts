@@ -7,6 +7,10 @@ export interface StickerPlacement {
   normal: [number, number, number];
 }
 
+export const VISUAL_CUBIE_SIZE = 0.62;
+export const VISUAL_LOGICAL_SCALE = 0.72;
+export const VISUAL_STICKER_SURFACE_OFFSET = VISUAL_CUBIE_SIZE / 2 + 0.018;
+
 const FACE_START: Record<FaceName, number> = {
   U: 0,
   R: 9,
@@ -58,6 +62,14 @@ export function getMoveLayer(face: FaceName): number {
 export function getMoveAngle(move: Move, direction: 1 | -1 = 1): number {
   const amount = move.amount === 2 ? 2 : move.amount === -1 ? -1 : 1;
   return FACE_TURN_SIGN[move.face] * amount * direction * (Math.PI / 2);
+}
+
+export function getStickerRenderPosition(placement: StickerPlacement): [number, number, number] {
+  return [
+    placement.position[0] * VISUAL_LOGICAL_SCALE + placement.normal[0] * VISUAL_STICKER_SURFACE_OFFSET,
+    placement.position[1] * VISUAL_LOGICAL_SCALE + placement.normal[1] * VISUAL_STICKER_SURFACE_OFFSET,
+    placement.position[2] * VISUAL_LOGICAL_SCALE + placement.normal[2] * VISUAL_STICKER_SURFACE_OFFSET,
+  ];
 }
 
 function buildStickerPlacements(): StickerPlacement[] {

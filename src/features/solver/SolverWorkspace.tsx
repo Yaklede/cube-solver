@@ -2,6 +2,7 @@ import { ChevronLeft, ChevronRight, Play, ScanLine } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
 import { applyMoves } from "@/core/moves";
+import { buildOrientationGuide, formatOrientationInstruction } from "@/core/orientation-guide";
 import { solveCubeState } from "@/core/solver";
 import type { SolverResult } from "@/core/models";
 
@@ -43,6 +44,8 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
   }, [activeStep, result, stateString]);
   const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
   const isComplete = result ? activeStep >= result.moves.length : false;
+  const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim()), [result, stateString]);
+  const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
 
   return (
     <section className="panel solver-panel">
@@ -86,6 +89,18 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
                 {warning}
               </p>
             ))}
+            <div className="orientation-guide" aria-label="풀이 시작 기준">
+              <strong>시작 기준</strong>
+              <p>{orientationInstruction}</p>
+              <div className="orientation-guide-list">
+                {orientationGuide.map((item) => (
+                  <span key={item.face}>
+                    <span className="orientation-swatch" style={{ backgroundColor: item.colorHex }} aria-hidden="true" />
+                    {item.label}: {item.colorName}
+                  </span>
+                ))}
+              </div>
+            </div>
             <div className="button-row">
               <button className="button secondary" onClick={() => setActiveStep((value) => Math.max(0, value - 1))} disabled={activeStep === 0}>
                 <ChevronLeft size={16} />
