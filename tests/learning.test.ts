@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { filterAlgorithms, flattenLessons } from "@/core/learning";
-import type { Algorithm, Method } from "@/core/models";
-import methodsData from "@/data/methods.json";
-import algorithmsData from "@/data/algorithms.json";
-
-const methods = methodsData as Method[];
-const algorithms = algorithmsData as Algorithm[];
+import { algorithms, methods } from "@/data/catalog";
 
 describe("learning data", () => {
   it("loads curriculum data with required methods", () => {

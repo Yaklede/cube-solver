@@ -3,11 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { filterAlgorithms, flattenLessons } from "@/core/learning";
 import type { Algorithm, Method } from "@/core/models";
 import { parseMove } from "@/core/moves";
-import methodsData from "@/data/methods.json";
-import algorithmsData from "@/data/algorithms.json";
-
-const methods = methodsData as Method[];
-const algorithms = algorithmsData as Algorithm[];
+import { algorithms, methods } from "@/data/catalog";
 
 export function LearningWorkspace() {
   const [query, setQuery] = useState("");
