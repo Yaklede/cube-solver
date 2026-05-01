@@ -5,6 +5,7 @@ description = "Webcam-based 3x3 cube solver and learning trainer"
 authors = ["Yaklede"]
 license = "MIT"
 edition = "2021"
+rust-version = "1.85"
 
 [lib]
 name = "cube_solver_trainer_lib"
