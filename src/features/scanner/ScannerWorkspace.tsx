@@ -1,8 +1,8 @@
 import { Check, RotateCcw, ScanLine } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
-import { createDefaultColorProfile, sampleNineGrid } from "@/core/color-recognition";
-import type { CubeFace, FaceName, StickerColor } from "@/core/models";
+import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
+import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
 import { captureGuideImageData, recognizeFaceFromSamples } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
@@ -20,9 +20,11 @@ const COLOR_LABEL: Record<StickerColor, string> = {
 export function ScannerWorkspace() {
   const [session, setSession] = useState(() => createEmptyScanSession());
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
+  const [selectedCalibrationColor, setSelectedCalibrationColor] = useState<StickerColor>("white");
   const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
   const [scanMessage, setScanMessage] = useState("카메라 인식 전입니다. 수동 수정 또는 샘플 저장을 사용할 수 있습니다.");
-  const colorProfile = useMemo(() => createDefaultColorProfile(), []);
+  const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
+  const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
@@ -85,6 +87,35 @@ export function ScannerWorkspace() {
     }
   }
 
+  function captureCalibrationSample() {
+    if (!cameraVideo) {
+      setScanMessage("카메라가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    try {
+      const imageData = captureGuideImageData(cameraVideo);
+      const centerSample = sampleNineGrid(imageData)[4];
+      setCalibrationSamples((previous) => {
+        const nextSamples = {
+          ...previous,
+          [selectedCalibrationColor]: centerSample,
+        };
+        setColorProfile(buildColorProfile(nextSamples));
+        return nextSamples;
+      });
+      setScanMessage(`${COLOR_LABEL[selectedCalibrationColor]} 기준 색상을 저장했습니다.`);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "색상 보정 샘플 캡처에 실패했습니다.");
+    }
+  }
+
+  function resetCalibration() {
+    setCalibrationSamples({});
+    setColorProfile(createDefaultColorProfile());
+    setScanMessage("기본 색상 프로필로 되돌렸습니다.");
+  }
+
   return (
     <div className="workspace-grid">
       <CameraPreview onReady={rememberCamera} />
@@ -141,7 +172,33 @@ export function ScannerWorkspace() {
 
             <div className="calibration-summary">
               <h3>색상 보정</h3>
-              <p>{colorProfile.samples.length}개 기준 색상과 흰색 기준 보정값을 사용합니다.</p>
+              <p>
+                {Object.keys(calibrationSamples).length} / {COLORS.length}개 기준 색상을 저장했습니다.
+              </p>
+              <div className="calibration-controls">
+                <select value={selectedCalibrationColor} onChange={(event) => setSelectedCalibrationColor(event.target.value as StickerColor)} aria-label="보정할 기준 색상">
+                  {COLORS.map((color) => (
+                    <option key={color} value={color}>
+                      {COLOR_LABEL[color]}
+                    </option>
+                  ))}
+                </select>
+                <button className="button secondary" onClick={captureCalibrationSample}>
+                  기준 색상 캡처
+                </button>
+                <button className="button secondary" onClick={resetCalibration}>
+                  기본값
+                </button>
+              </div>
+              <div className="calibration-swatches" aria-label="저장된 보정 색상">
+                {COLORS.map((color) => (
+                  <span key={color} className={`calibration-chip ${calibrationSamples[color] ? "captured" : ""}`}>
+                    <span className={`swatch swatch-${color}`} />
+                    <span>{COLOR_LABEL[color]}</span>
+                    <span className="rgb-readout">{formatRgb(calibrationSamples[color])}</span>
+                  </span>
+                ))}
+              </div>
             </div>
 
             <button className="button primary" onClick={() => saveFace(currentFace)}>
@@ -166,6 +223,20 @@ export function ScannerWorkspace() {
       </section>
     </div>
   );
+}
+
+function buildColorProfile(samples: Partial<Record<StickerColor, RgbColor>>) {
+  return calibrateColorProfile(
+    COLORS.map((color) => ({
+      color,
+      rgb: samples[color] ?? DEFAULT_COLOR_RGB[color],
+    })),
+  );
+}
+
+function formatRgb(rgb?: RgbColor): string {
+  if (!rgb) return "미저장";
+  return `${rgb.r},${rgb.g},${rgb.b}`;
 }
 
 function ValidationSummary({ valid, errors, warnings }: { valid: boolean; errors: string[]; warnings: string[] }) {

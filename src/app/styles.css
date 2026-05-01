@@ -287,6 +287,46 @@ p {
   align-items: center;
 }
 
+.calibration-controls {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) auto auto;
+  gap: 8px;
+}
+
+.calibration-swatches {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.calibration-chip {
+  display: grid;
+  grid-template-columns: 26px minmax(44px, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px 8px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.calibration-chip.captured {
+  border-color: rgba(15, 118, 110, 0.42);
+}
+
+.calibration-chip .swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+}
+
+.rgb-readout {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
 .tab {
   display: inline-flex;
   align-items: center;
