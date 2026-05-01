@@ -1,0 +1,179 @@
+[
+  {
+    "id": "absolute-beginner",
+    "name": "왕초보 과정",
+    "description": "큐브 구조, 표기법, 잡는 방향부터 앱 안내를 따라 첫 완성까지 진행합니다.",
+    "level": "absolute-beginner",
+    "tags": ["tutorial", "notation"],
+    "stages": [
+      {
+        "id": "absolute-basics",
+        "methodId": "absolute-beginner",
+        "name": "큐브 기본기",
+        "description": "센터, 엣지, 코너와 U/D/F/B/L/R 표기법을 익힙니다.",
+        "order": 1,
+        "lessons": [
+          {
+            "id": "cube-structure",
+            "stageId": "absolute-basics",
+            "title": "큐브 구조 이해",
+            "objective": "센터, 엣지, 코너의 역할을 구분합니다.",
+            "body": "센터는 면 색의 기준이고, 엣지는 두 색, 코너는 세 색으로 위치를 판단합니다.",
+            "estimatedMinutes": 6,
+            "requiredAlgorithms": []
+          },
+          {
+            "id": "notation-grip",
+            "stageId": "absolute-basics",
+            "title": "표기법과 잡는 방향",
+            "objective": "U, D, F, B, L, R 및 R, R', R2를 설명할 수 있습니다.",
+            "body": "앞면을 기준으로 각 면 이름을 고정하고, 시계 방향/반시계 방향/180도 회전을 구분합니다.",
+            "estimatedMinutes": 8,
+            "requiredAlgorithms": ["alg-sexy-move"]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "beginner-method",
+    "name": "초보 과정",
+    "description": "층별 풀이로 첫 번째 십자가부터 마지막 엣지 위치까지 완성합니다.",
+    "level": "beginner",
+    "tags": ["beginner", "layer-by-layer"],
+    "stages": [
+      {
+        "id": "beginner-layer-by-layer",
+        "methodId": "beginner-method",
+        "name": "Layer by Layer",
+        "description": "첫 층, 두 번째 층, 마지막 층을 순서대로 해결합니다.",
+        "order": 1,
+        "lessons": [
+          {
+            "id": "first-cross",
+            "stageId": "beginner-layer-by-layer",
+            "title": "첫 번째 십자가 만들기",
+            "objective": "센터 색을 기준으로 첫 십자가를 맞춥니다.",
+            "body": "엣지 조각을 하나씩 찾아 목표 센터와 옆면 색이 맞도록 배치합니다.",
+            "estimatedMinutes": 12,
+            "requiredAlgorithms": []
+          },
+          {
+            "id": "finish-beginner",
+            "stageId": "beginner-layer-by-layer",
+            "title": "초보 공식으로 완성하기",
+            "objective": "코너, 두 번째 층, 윗면 색상, 윗면 위치를 순서대로 해결합니다.",
+            "body": "단계를 나누어 실수 지점을 재인식하고 복구할 수 있도록 연습합니다.",
+            "estimatedMinutes": 30,
+            "requiredAlgorithms": ["alg-sexy-move", "alg-beginner-last-layer"]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "cfop",
+    "name": "CFOP",
+    "description": "D-Cross, F2L, OLL, PLL을 단계별로 학습합니다.",
+    "level": "advanced",
+    "tags": ["cfop", "speedsolving"],
+    "stages": [
+      {
+        "id": "d-cross",
+        "methodId": "cfop",
+        "name": "D-Cross",
+        "description": "15초 인스펙션과 Cross 계획을 연습합니다.",
+        "order": 1,
+        "lessons": [
+          {
+            "id": "cross-planning",
+            "stageId": "d-cross",
+            "title": "Cross 계획",
+            "objective": "흰색 또는 색상 중립 Cross 경로를 계획합니다.",
+            "body": "엣지 위치를 추적하고 8수 이하 해결을 목표로 계획합니다.",
+            "estimatedMinutes": 15,
+            "requiredAlgorithms": []
+          }
+        ]
+      },
+      {
+        "id": "f2l",
+        "methodId": "cfop",
+        "name": "F2L",
+        "description": "페어 인식, 케이스 분류, Lookahead를 연습합니다.",
+        "order": 2,
+        "lessons": [
+          {
+            "id": "intuitive-f2l",
+            "stageId": "f2l",
+            "title": "직관적 F2L",
+            "objective": "코너-엣지 페어를 찾아 슬롯에 넣습니다.",
+            "body": "오른손/왼손 삽입을 비교하고 쉬운 공식과 빠른 공식을 구분합니다.",
+            "estimatedMinutes": 25,
+            "requiredAlgorithms": ["alg-f2l-basic-insert"]
+          }
+        ]
+      },
+      {
+        "id": "oll",
+        "methodId": "cfop",
+        "name": "OLL",
+        "description": "2-Look OLL과 Full OLL 패턴을 학습합니다.",
+        "order": 3,
+        "lessons": [
+          {
+            "id": "two-look-oll",
+            "stageId": "oll",
+            "title": "2-Look OLL",
+            "objective": "윗면 십자가와 윗면 색상을 분리해서 해결합니다.",
+            "body": "Sune, Anti-Sune 등 핵심 패턴을 카드와 랜덤 테스트로 반복합니다.",
+            "estimatedMinutes": 20,
+            "requiredAlgorithms": ["alg-oll-sune"]
+          }
+        ]
+      },
+      {
+        "id": "pll",
+        "methodId": "cfop",
+        "name": "PLL",
+        "description": "2-Look PLL과 Full PLL을 학습합니다.",
+        "order": 4,
+        "lessons": [
+          {
+            "id": "two-look-pll",
+            "stageId": "pll",
+            "title": "2-Look PLL",
+            "objective": "코너 위치와 엣지 위치를 분리해서 해결합니다.",
+            "body": "Aa, Ab, T, J, Y, H, Z 등 케이스 이름과 차이를 학습합니다.",
+            "estimatedMinutes": 25,
+            "requiredAlgorithms": ["alg-pll-t-perm", "alg-pll-h-perm"]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "id": "roux",
+    "name": "Roux",
+    "description": "블록 빌딩, CMLL, LSE 중심의 대안 해법입니다.",
+    "level": "intermediate",
+    "tags": ["alternative-method"],
+    "stages": []
+  },
+  {
+    "id": "zz",
+    "name": "ZZ",
+    "description": "EO Line과 회전 수 절감을 목표로 하는 대안 해법입니다.",
+    "level": "advanced",
+    "tags": ["alternative-method", "eo-line"],
+    "stages": []
+  },
+  {
+    "id": "petrus",
+    "name": "Petrus",
+    "description": "2x2x2 블록 확장과 엣지 방향 정리를 사용하는 대안 해법입니다.",
+    "level": "intermediate",
+    "tags": ["alternative-method", "block-building"],
+    "stages": []
+  }
+]

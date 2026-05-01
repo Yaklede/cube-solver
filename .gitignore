@@ -1,0 +1,40 @@
+# dependencies
+node_modules/
+.npm/
+
+# build outputs
+dist/
+build/
+coverage/
+.vite/
+*.tsbuildinfo
+
+# local env and secrets
+.env
+.env.*
+!.env.example
+
+# logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+src-tauri/.tauri/
+
+# OMA / Codex runtime caches
+.serena/cache/
+.serena/logs/
+.serena/memories/*.tmp
+.agents/state/
+.codex/sessions/
+.codex/tmp/
