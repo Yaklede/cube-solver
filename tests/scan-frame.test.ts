@@ -1,0 +1,22 @@
+import { describe, expect, it } from "vitest";
+import { createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
+import { calculateGuideCrop, recognizeFaceFromSamples } from "@/core/scan-frame";
+
+describe("scan frame helpers", () => {
+  it("calculates a centered square crop for cover-fitted video", () => {
+    const crop = calculateGuideCrop(1920, 1080, 800, 500);
+    expect(crop.size).toBeGreaterThan(680);
+    expect(crop.size).toBeLessThan(700);
+    expect(crop.x).toBeGreaterThan(500);
+    expect(crop.y).toBeGreaterThan(180);
+  });
+
+  it("recognizes a face from nine rgb samples", () => {
+    const profile = createDefaultColorProfile();
+    const samples = Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.green);
+    const face = recognizeFaceFromSamples("F", samples, profile);
+    expect(face.stickers).toHaveLength(9);
+    expect(face.centerColor).toBe("green");
+    expect(face.stickers.every((sticker) => sticker.color === "green")).toBe(true);
+  });
+});

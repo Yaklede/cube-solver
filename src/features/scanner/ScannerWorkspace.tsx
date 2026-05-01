@@ -1,8 +1,9 @@
-import { Check, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, RotateCcw, ScanLine } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
-import { createDefaultColorProfile } from "@/core/color-recognition";
+import { createDefaultColorProfile, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, StickerColor } from "@/core/models";
+import { captureGuideImageData, recognizeFaceFromSamples } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
@@ -19,10 +20,13 @@ const COLOR_LABEL: Record<StickerColor, string> = {
 export function ScannerWorkspace() {
   const [session, setSession] = useState(() => createEmptyScanSession());
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
+  const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
+  const [scanMessage, setScanMessage] = useState("카메라 인식 전입니다. 수동 수정 또는 샘플 저장을 사용할 수 있습니다.");
   const colorProfile = useMemo(() => createDefaultColorProfile(), []);
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
+  const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
 
   function saveFace(face: CubeFace) {
     const currentIndex = FACE_ORDER.indexOf(activeFace);
@@ -56,9 +60,34 @@ export function ScannerWorkspace() {
     }));
   }
 
+  function recognizeCurrentFace() {
+    if (!cameraVideo) {
+      setScanMessage("카메라가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    try {
+      const imageData = captureGuideImageData(cameraVideo);
+      const samples = sampleNineGrid(imageData);
+      const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
+      const averageConfidence =
+        nextFace.stickers.reduce((total, sticker) => total + sticker.confidence, 0) / nextFace.stickers.length;
+      setSession((previous) => ({
+        ...previous,
+        faces: {
+          ...previous.faces,
+          [activeFace]: nextFace,
+        },
+      }));
+      setScanMessage(`${activeFace} 면을 인식했습니다. 평균 신뢰도 ${Math.round(averageConfidence * 100)}%입니다.`);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
+    }
+  }
+
   return (
     <div className="workspace-grid">
-      <CameraPreview />
+      <CameraPreview onReady={rememberCamera} />
       <section className="panel">
         <div className="panel-header">
           <div>
@@ -90,6 +119,7 @@ export function ScannerWorkspace() {
                 aria-label={`${activeFace} ${sticker.index + 1}번 칸 ${COLOR_LABEL[sticker.color]}`}
               >
                 {sticker.index === 4 ? activeFace : ""}
+                <span className="sticker-confidence">{Math.round(sticker.confidence * 100)}</span>
               </button>
             ))}
           </div>
@@ -117,9 +147,14 @@ export function ScannerWorkspace() {
             <button className="button primary" onClick={() => saveFace(currentFace)}>
               현재 면 저장
             </button>
+            <button className="button secondary" onClick={recognizeCurrentFace}>
+              <ScanLine size={16} />
+              카메라에서 인식
+            </button>
             <button className="button secondary" onClick={fillWithSolvedSample}>
               샘플 면 저장
             </button>
+            <p className="scan-feedback">{scanMessage}</p>
           </div>
         </div>
 
