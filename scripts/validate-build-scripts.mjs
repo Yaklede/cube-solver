@@ -2,7 +2,16 @@ import fs from "node:fs";
 
 const packageJson = JSON.parse(fs.readFileSync("package.json", "utf8"));
 const tauriConfig = JSON.parse(fs.readFileSync("src-tauri/tauri.conf.json", "utf8"));
-const requiredScripts = ["dev", "build", "test", "validate:all", "tauri:build", "mobile:pwa"];
+const requiredScripts = [
+  "dev",
+  "build",
+  "test",
+  "validate:all",
+  "tauri:build",
+  "tauri:build:macos-ci",
+  "tauri:build:windows-ci",
+  "mobile:pwa",
+];
 const errors = [];
 
 for (const script of requiredScripts) {

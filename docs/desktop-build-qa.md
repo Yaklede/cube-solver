@@ -29,6 +29,12 @@ macOS와 Windows에서 동일한 웹 UI와 핵심 로직을 Tauri 네이티브 �
 3. artifact에 `.msi` 또는 `.exe` 번들이 포함되는지 확인한다.
 4. Windows 실기기에서 설치 후 카메라 권한과 화면 레이아웃을 확인한다.
 
+## GitHub Actions 검증 기준
+
+- macOS runner는 `npm run tauri:build:macos-ci`로 `.app` 번들을 생성한다.
+- Windows runner는 `npm run tauri:build:windows-ci`로 `.msi`, `.exe` 설치 번들을 생성한다.
+- macOS DMG는 로컬 검증에서 확인한다. Hosted runner에서는 DMG packaging helper가 환경 차이로 실패할 수 있어 CI 필수 산출물에서 제외한다.
+
 ## 현재 로컬 검증 결과
 
 - 실행일: 2026-05-01

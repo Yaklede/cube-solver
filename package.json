@@ -17,6 +17,8 @@
     "qa:internal": "npm run validate:all",
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
+    "tauri:build:macos-ci": "tauri build --bundles app --ci",
+    "tauri:build:windows-ci": "tauri build --bundles msi,nsis --ci",
     "mobile:pwa": "npm run build && npm run preview"
   },
   "dependencies": {

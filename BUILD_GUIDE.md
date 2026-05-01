@@ -85,4 +85,9 @@ GitHub Actions에서 수동 실행 또는 PR 변경 시 다음 workflow를 실�
 .github/workflows/desktop-build.yml
 ```
 
-이 workflow는 `macos-latest`, `windows-latest`에서 `npm ci`, `npm run validate:build-scripts`, `npm run tauri:build`를 실행하고 번들 산출물을 artifact로 업로드한다.
+이 workflow는 `macos-latest`, `windows-latest`에서 `npm ci`, `npm run validate:build-scripts`를 실행한 뒤 플랫폼별 번들을 생성한다.
+
+- macOS CI: `npm run tauri:build:macos-ci` (`.app`)
+- Windows CI: `npm run tauri:build:windows-ci` (`.msi`, `.exe`)
+
+DMG 패키징은 macOS 로컬 검증 대상이다. GitHub hosted macOS runner에서는 DMG 생성 스크립트가 환경 차이로 실패할 수 있어 CI에서는 `.app` 번들 생성을 외부검증 기준으로 둔다.
