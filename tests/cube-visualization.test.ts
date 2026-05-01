@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { getMoveAngle, getMoveAxis, getMoveLayer, STICKER_PLACEMENTS, VISUAL_FACE_COLORS } from "@/core/cube-visualization";
+import {
+  getMoveAngle,
+  getMoveAxis,
+  getMoveLayer,
+  getStickerRenderPosition,
+  STICKER_PLACEMENTS,
+  VISUAL_CUBIE_SIZE,
+  VISUAL_FACE_COLORS,
+  VISUAL_LOGICAL_SCALE,
+} from "@/core/cube-visualization";
 import { parseMove } from "@/core/moves";
 import type { FaceName } from "@/core/models";
 
@@ -34,5 +43,18 @@ describe("cube visualization mapping", () => {
 
   it("defines stable colors for all cube faces", () => {
     expect(Object.keys(VISUAL_FACE_COLORS).sort()).toEqual(["B", "D", "F", "L", "R", "U"]);
+  });
+
+  it("places stickers outside the cubie surface", () => {
+    for (const placement of STICKER_PLACEMENTS) {
+      const position = getStickerRenderPosition(placement);
+      const cubieCenter = placement.position.map((value) => value * VISUAL_LOGICAL_SCALE);
+      const offsetFromCenter =
+        (position[0] - cubieCenter[0]) * placement.normal[0] +
+        (position[1] - cubieCenter[1]) * placement.normal[1] +
+        (position[2] - cubieCenter[2]) * placement.normal[2];
+
+      expect(offsetFromCenter).toBeGreaterThan(VISUAL_CUBIE_SIZE / 2);
+    }
   });
 });
