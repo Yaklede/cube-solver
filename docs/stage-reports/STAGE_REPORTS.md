@@ -357,6 +357,23 @@
 남은 문제: 3D chunk가 512.74 kB라 장기적으로 Three.js 세부 chunk 분리 또는 경량 렌더링 전략을 검토할 수 있다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
 
+## 24단계
+
+[단계 결과 보고서]
+
+단계 번호: 24
+단계 이름: 솔버 해석 실패/3D 수동 제어/카메라 스캔 UX 개선
+이번 단계 목표: 솔버 원문 에러 노출을 막고, 3D 큐브를 사용자가 직접 돌려볼 수 있게 하며, 카메라 인식 버튼을 프리뷰 근처에 배치하고 자동 인식 fallback을 제공한다.
+완료한 작업: 외부 솔버 예외를 사용자 친화 문구로 변환하고 fallback 시 임의 공식을 진행하지 않도록 했다. 3D 큐브에 드래그, 화살표 키, 시점 제어 버튼을 추가했다. 자동 인식이 5회 안정화되지 않으면 센터 색상이 맞는 경우 수동 인식 fallback을 자동 실행한다. 카메라 빠른 인식/저장/자동 토글 바를 프리뷰 바로 아래에 추가했다.
+생성/수정한 파일: `src/core/solver.ts`, `src/core/scan-frame.ts`, `src/features/solver/SolverWorkspace.tsx`, `src/features/solver/components/Cube3DViewer.tsx`, `src/features/scanner/ScannerWorkspace.tsx`, `src/app/styles.css`, `tests/solver.test.ts`, `tests/cube-3d-viewer.test.ts`, `tests/scan-frame.test.ts`, `TASK.md`, `README.md`, `USER_GUIDE.md`
+핵심 구현 내용: `Cannot read properties of undefined (reading 'faces')`를 raw warning으로 노출하지 않고, 물리적으로 해석 불가한 큐브 상태 안내로 치환한다. 3D 뷰어는 idle 회전 없이 직접 시점 조절만 수행한다. 스캐너는 실패 카운트를 추적해 5회 후 fallback recognition을 적용한다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 상태 문자열을 입력하거나 카메라/스캔 화면에서 프리뷰 아래 빠른 인식 버튼을 사용한다.
+테스트 방법: `npm run test -- tests/solver.test.ts tests/cube-3d-viewer.test.ts tests/scan-frame.test.ts`, `npm run validate:all`, in-app browser 수동 확인.
+테스트 결과: 대상 단위 테스트 3개 파일 11개 테스트 통과, 전체 검증 15개 파일 47개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: in-app browser에서 impossible state 입력 시 raw error가 사라지고 `확인 필요 / 0`, sanitized warning, disabled `다음`을 확인했다. 3D 오른쪽 제어 버튼 클릭 후 screenshot base64가 변경됐고, 카메라 화면에 `카메라 빠른 인식` 영역이 프리뷰 바로 아래 표시됐다.
+남은 문제: 실제 카메라 환경에서 fallback 빈도와 오인식률은 추가 실측이 필요하다.
+다음 단계에서 할 일: PR 외부검증, merge.
+
 ## 23단계
 
 [단계 결과 보고서]
