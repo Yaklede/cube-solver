@@ -21,11 +21,23 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#root {
+  width: 100%;
+  max-width: 100%;
+}
+
+html {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
   background: #fcfcfc;
+  overflow-x: hidden;
 }
 
 button,
@@ -43,9 +55,11 @@ button {
   display: grid;
   grid-template-columns: 248px minmax(0, 1fr);
   min-height: 100vh;
+  min-width: 0;
 }
 
 .sidebar {
+  min-width: 0;
   border-right: 1px solid var(--border);
   background: #f7f8fa;
   padding: 20px 14px;
@@ -55,6 +69,7 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+  min-width: 0;
   padding: 0 8px 18px;
   border-bottom: 1px solid var(--border);
 }
@@ -73,6 +88,9 @@ button {
 .brand strong,
 .brand span {
   display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .brand span {
@@ -106,6 +124,7 @@ button {
 }
 
 .main-area {
+  min-width: 0;
   padding: 24px;
 }
 
@@ -116,9 +135,11 @@ button {
   grid-template-columns: minmax(0, 1fr) minmax(360px, 0.7fr);
   gap: 18px;
   align-items: start;
+  min-width: 0;
 }
 
 .panel {
+  min-width: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: var(--surface);
@@ -177,6 +198,7 @@ p {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+  min-width: 0;
 }
 
 .button {
@@ -408,6 +430,7 @@ p {
   grid-template-columns: 260px minmax(0, 1fr);
   gap: 18px;
   margin-top: 18px;
+  min-width: 0;
 }
 
 .solution-layout {
@@ -418,7 +441,7 @@ p {
 .cube-face-editor {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  width: 260px;
+  width: min(260px, 100%);
   aspect-ratio: 1;
   border: 1px solid #111827;
   background: #111827;
@@ -1310,13 +1333,15 @@ button.method-row:disabled {
   margin-top: 18px;
   border: 1px solid var(--border);
   border-radius: 8px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .records-row {
   display: grid;
   grid-template-columns: 1fr 90px 90px 90px;
   gap: 8px;
+  min-width: 480px;
   padding: 10px 12px;
   border-bottom: 1px solid var(--border);
 }
@@ -1410,5 +1435,129 @@ button.method-row:disabled {
 
   .lesson-list.compact {
     max-height: none;
+  }
+}
+
+@media (max-width: 640px) {
+  body {
+    min-width: 0;
+  }
+
+  .sidebar {
+    padding: 12px 10px 10px;
+  }
+
+  .brand {
+    padding: 0 4px 12px;
+  }
+
+  .brand-mark {
+    width: 32px;
+    height: 32px;
+    flex: 0 0 auto;
+  }
+
+  .main-area {
+    padding: 16px 12px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  h1 {
+    font-size: 28px;
+    line-height: 1.18;
+  }
+
+  h2 {
+    font-size: 20px;
+  }
+
+  .panel-header {
+    gap: 10px;
+  }
+
+  .button-row {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .button-row .button,
+  .playback-controls .button {
+    width: 100%;
+  }
+
+  .checklist,
+  .calibration-controls,
+  .field.inline,
+  .start-reference-control,
+  .start-reference-options,
+  .range-field {
+    grid-template-columns: 1fr;
+  }
+
+  .camera-action-buttons {
+    grid-template-columns: 1fr;
+  }
+
+  .auto-scan-toggle.compact {
+    grid-column: auto;
+  }
+
+  .camera-video,
+  .camera-frame {
+    min-height: 320px;
+    height: 320px;
+  }
+
+  .scan-guide-label {
+    width: min(280px, 82vw);
+    white-space: normal;
+    text-align: center;
+  }
+
+  .calibration-chip {
+    grid-template-columns: 26px minmax(0, 1fr);
+  }
+
+  .calibration-chip .button {
+    grid-column: 1 / -1;
+  }
+
+  .solution-step > strong {
+    font-size: 36px;
+  }
+
+  .cube-viewer {
+    padding: 10px;
+  }
+
+  .cube-viewer-stage {
+    min-height: 240px;
+  }
+
+  .device-plan-row code {
+    width: 100%;
+  }
+}
+
+@media (max-width: 420px) {
+  .main-area {
+    padding: 12px 8px;
+  }
+
+  .panel {
+    padding: 14px;
+  }
+
+  h1 {
+    font-size: 25px;
+  }
+
+  .camera-video,
+  .camera-frame {
+    min-height: 280px;
+    height: 280px;
   }
 }
