@@ -1,0 +1,17 @@
+{
+  "name": "Cube Solver Trainer",
+  "short_name": "Cube Trainer",
+  "description": "Webcam-based 3x3 cube solver and learning trainer.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#fcfcfc",
+  "theme_color": "#fcfcfc",
+  "icons": [
+    {
+      "src": "/pwa-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
