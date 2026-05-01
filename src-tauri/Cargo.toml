@@ -1,0 +1,17 @@
+[package]
+name = "cube-solver-trainer"
+version = "0.1.0"
+description = "Webcam-based 3x3 cube solver and learning trainer"
+authors = ["Yaklede"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+name = "cube_solver_trainer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
