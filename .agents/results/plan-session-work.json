@@ -1,0 +1,36 @@
+{
+  "sessionId": "session-work",
+  "request": "Build cube solver trainer MVP with harness engineering and split commits by stage.",
+  "priorities": [
+    {
+      "priority": "P0",
+      "tasks": [
+        "Stage 1: scaffold runnable React/Vite/Tauri/PWA app and harness scripts",
+        "Stage 2-8: camera, scan, cube state, solver, step guide",
+        "Stage 9-15: learning data, algorithm library, progress tracking",
+        "Stage 16-20: build targets, docs, final verification"
+      ]
+    },
+    {
+      "priority": "P1",
+      "tasks": [
+        "Split commits by stage without a single omnibus commit",
+        "Run internal verification after implementation commits",
+        "Push branch and open PR when possible"
+      ]
+    }
+  ],
+  "contracts": {
+    "core": "src/core exports platform-independent cube, color, solver, learning, progress APIs.",
+    "data": "src/data/*.json conforms to Method and Algorithm models.",
+    "ui": "src/features imports core/data only; src/core never imports UI.",
+    "platform": "src-tauri and public PWA files wrap the same web UI."
+  },
+  "validation": [
+    "npm run lint:architecture",
+    "npm run test",
+    "npm run validate:harness",
+    "npm run validate:build-scripts",
+    "npm run build"
+  ]
+}
