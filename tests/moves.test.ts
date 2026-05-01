@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
-import { applyAlgorithm, invertAlgorithm, parseAlgorithm, parseMove } from "@/core/moves";
+import { applyAlgorithm, applyMoves, invertAlgorithm, parseAlgorithm, parseMove } from "@/core/moves";
 
 describe("move parser and simulator", () => {
   it("parses standard rotation notation", () => {
@@ -23,5 +23,10 @@ describe("move parser and simulator", () => {
 
   it("parses multi-move algorithms", () => {
     expect(parseAlgorithm("R U R' U'")).toHaveLength(4);
+  });
+
+  it("applies a parsed move array", () => {
+    const algorithm = "R U R' U'";
+    expect(applyMoves(SOLVED_STATE_STRING, parseAlgorithm(algorithm))).toBe(applyAlgorithm(SOLVED_STATE_STRING, algorithm));
   });
 });

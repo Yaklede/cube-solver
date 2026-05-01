@@ -80,6 +80,10 @@ export function applyAlgorithm(stateString: string, algorithm: string): string {
   return parseAlgorithm(algorithm).reduce((state, move) => applyMove(state, move), stateString);
 }
 
+export function applyMoves(stateString: string, moves: Move[]): string {
+  return moves.reduce((state, move) => applyMove(state, move), stateString);
+}
+
 export function invertAlgorithm(algorithm: string): string {
   return parseAlgorithm(algorithm)
     .toReversed()

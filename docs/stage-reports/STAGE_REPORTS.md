@@ -339,3 +339,20 @@
 스크린샷 또는 확인 가능한 결과: 문서와 CI.
 남은 문제: 외부검증은 PR 생성 후 GitHub Actions에서 확인.
 다음 단계에서 할 일: PR 외부검증과 merge.
+
+## 21단계
+
+[단계 결과 보고서]
+
+단계 번호: 21
+단계 이름: 풀이 단계별 3D 큐브 시각화
+이번 단계 목표: 인식된 큐브 상태를 3D로 표시하고 풀이 단계 이동에 맞춰 큐브가 회전하도록 한다.
+완료한 작업: Three.js 기반 3D 큐브 뷰어, 단계별 상태 계산, 이전/다음 회전 애니메이션, solver export 호환 보강, 회귀 테스트를 추가했다.
+생성/수정한 파일: `src/features/solver/components/Cube3DViewer.tsx`, `src/features/solver/SolverWorkspace.tsx`, `src/core/cube-visualization.ts`, `src/core/moves.ts`, `src/core/solver.ts`, `src/app/styles.css`, `tests/cube-visualization.test.ts`, `tests/moves.test.ts`, `tests/solver.test.ts`, `package.json`, `package-lock.json`, `.gitignore`, `README.md`, `USER_GUIDE.md`, `TEST_PLAN.md`, `TASK.md`
+핵심 구현 내용: 현재 상태 문자열에 적용된 move 수만큼 `applyMoves`로 3D 표시 상태를 계산하고, 한 단계 차이는 회전 레이어 pivot 애니메이션으로 표시한다. 3D 뷰어는 lazy load로 분리해 초기 번들 부담을 줄였다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 상태 문자열을 입력하고 `풀이 생성`을 누른다.
+테스트 방법: `npm run test -- tests/solver.test.ts tests/moves.test.ts tests/cube-visualization.test.ts`, `npm run build`, 브라우저 수동 확인.
+테스트 결과: 단위 테스트 3개 파일 10개 테스트 통과, production build 통과, 브라우저에서 49수 솔루션과 3D 단계 전환 확인.
+스크린샷 또는 확인 가능한 결과: in-app browser에서 `다음` 클릭 후 단계가 `2 / 49`로 변경되고, 3D 캔버스 하단 영역 픽셀 diff `20885 / 67620` 확인.
+남은 문제: 3D chunk가 512.74 kB라 장기적으로 Three.js 세부 chunk 분리 또는 경량 렌더링 전략을 검토할 수 있다.
+다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
