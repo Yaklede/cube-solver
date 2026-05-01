@@ -31,6 +31,10 @@ for (const iconPath of ["src-tauri/icons/icon.png", "src-tauri/icons/icon.icns",
   if (!fs.existsSync(iconPath)) errors.push(`Missing Tauri icon: ${iconPath}`);
 }
 
+for (const iconConfig of ["icons/icon.icns", "icons/icon.ico"]) {
+  if (!tauriConfig.bundle?.icon?.includes(iconConfig)) errors.push(`Missing Tauri icon config: ${iconConfig}`);
+}
+
 if (errors.length) {
   console.error(errors.join("\n"));
   process.exit(1);
