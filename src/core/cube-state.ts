@@ -47,6 +47,41 @@ export function createEmptyScanSession(): ScanSession {
   };
 }
 
+export function createScanSessionFromStateString(stateString: string, activeFace: FaceName = "U"): ScanSession {
+  const normalized = stateString.trim().toUpperCase();
+  const faces: Partial<Record<FaceName, CubeFace>> = {};
+
+  for (const face of FACE_ORDER) {
+    const start = FACE_ORDER.indexOf(face) * 9;
+    const symbols = normalized.slice(start, start + 9).split("");
+    if (symbols.length !== 9 || symbols.some((symbol) => !isFaceSymbol(symbol))) continue;
+
+    faces[face] = {
+      name: face,
+      centerColor: FACE_COLORS[symbols[4] as FaceName],
+      stickers: symbols.map((symbol, index): CubeSticker => {
+        const color = FACE_COLORS[symbol as FaceName];
+        return {
+          id: `${face}-${index}`,
+          face,
+          index,
+          color,
+          confidence: 1,
+          manuallyEdited: true,
+        };
+      }),
+    };
+  }
+
+  return {
+    id: `scan-${Date.now()}`,
+    createdAt: new Date().toISOString(),
+    activeFace,
+    faceOrder: FACE_ORDER,
+    faces,
+  };
+}
+
 export function createCubeStateString(faces: Partial<Record<FaceName, CubeFace>>): string {
   return FACE_ORDER.map((face) => {
     const cubeFace = faces[face];
@@ -114,6 +149,10 @@ export function buildCubeState(faces: Partial<Record<FaceName, CubeFace>>): Cube
     validation: validateCubeStateString(stateString),
     updatedAt: new Date().toISOString(),
   };
+}
+
+function isFaceSymbol(value: string): value is FaceName {
+  return value === "U" || value === "R" || value === "F" || value === "D" || value === "L" || value === "B";
 }
 
 export function updateSticker(face: CubeFace, index: number, color: StickerColor): CubeFace {

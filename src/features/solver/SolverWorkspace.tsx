@@ -12,7 +12,7 @@ const Cube3DViewer = lazy(() =>
 
 interface SolverWorkspaceProps {
   initialStateString?: string;
-  onOpenScanner?: () => void;
+  onOpenScanner?: (stateString?: string) => void;
 }
 
 export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOpenScanner }: SolverWorkspaceProps) {
@@ -46,6 +46,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
   const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
   const hasMoves = result ? result.moves.length > 0 : false;
   const isComplete = result ? hasMoves && activeStep >= result.moves.length : false;
+  const needsScanEdit = result?.status === "fallback" || result?.status === "invalid";
   const stepLabel = result?.status === "solved" ? "완료" : !hasMoves ? "확인 필요" : isComplete ? "완료" : `${activeStep + 1}`;
   const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim(), orientationMode), [orientationMode, result, stateString]);
   const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
@@ -62,9 +63,9 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
             <Play size={16} />
             {busy ? "계산 중" : "풀이 생성"}
           </button>
-          <button className="button secondary" onClick={onOpenScanner}>
+          <button className="button secondary" onClick={() => onOpenScanner?.(stateString.trim())}>
             <ScanLine size={16} />
-            현재 상태 재스캔
+            스캔/수정 열기
           </button>
         </div>
       </div>
@@ -111,6 +112,14 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
                 {warning}
               </p>
             ))}
+            {needsScanEdit ? (
+              <div className="button-row solution-repair-actions">
+                <button className="button primary" onClick={() => onOpenScanner?.(result.stateString)}>
+                  <ScanLine size={16} />
+                  기존 스캔 불러와 수정
+                </button>
+              </div>
+            ) : null}
             <div className="orientation-guide" aria-label="풀이 시작 기준">
               <strong>시작 기준</strong>
               <p>{orientationInstruction}</p>

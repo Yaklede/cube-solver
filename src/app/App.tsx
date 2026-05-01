@@ -5,6 +5,7 @@ import { SolverWorkspace } from "@/features/solver/SolverWorkspace";
 import { LearningWorkspace } from "@/features/learning/LearningWorkspace";
 import { ProgressWorkspace } from "@/features/progress/ProgressWorkspace";
 import { SettingsWorkspace } from "@/features/settings/SettingsWorkspace";
+import type { ScanSession } from "@/core/models";
 
 type Screen = "home" | "scan" | "solver" | "learning" | "progress" | "settings";
 
@@ -20,10 +21,35 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; icon: typeof Home }> = [
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [scannedStateString, setScannedStateString] = useState<string | undefined>();
+  const [lastScanSession, setLastScanSession] = useState<ScanSession | undefined>();
+  const [scannerSeed, setScannerSeed] = useState<{ revision: number; stateString?: string; session?: ScanSession }>({ revision: 0 });
 
-  function openSolverWithState(stateString: string) {
+  function navigate(screenId: Screen) {
+    if (screenId === "scan") {
+      setScannerSeed((previous) => ({
+        revision: previous.revision + 1,
+        stateString: scannedStateString,
+        session: lastScanSession,
+      }));
+    }
+    setScreen(screenId);
+  }
+
+  function openSolverWithState(stateString: string, session: ScanSession) {
     setScannedStateString(stateString);
+    setLastScanSession(session);
     setScreen("solver");
+  }
+
+  function openScannerForEdit(stateString?: string) {
+    const trimmedState = stateString?.trim();
+    const canReuseStoredSession = !trimmedState || trimmedState === scannedStateString;
+    setScannerSeed((previous) => ({
+      revision: previous.revision + 1,
+      stateString: trimmedState ?? scannedStateString,
+      session: canReuseStoredSession ? lastScanSession : undefined,
+    }));
+    setScreen("scan");
   }
 
   return (
@@ -40,7 +66,7 @@ export function App() {
           {NAV_ITEMS.map((item) => {
             const Icon = item.icon;
             return (
-              <button key={item.id} className={screen === item.id ? "nav-item active" : "nav-item"} onClick={() => setScreen(item.id)}>
+              <button key={item.id} className={screen === item.id ? "nav-item active" : "nav-item"} onClick={() => navigate(item.id)}>
                 <Icon size={18} />
                 <span>{item.label}</span>
               </button>
@@ -50,9 +76,17 @@ export function App() {
       </aside>
 
       <main className="main-area">
-        {screen === "home" ? <HomeScreen onNavigate={setScreen} /> : null}
-        {screen === "scan" ? <ScannerWorkspace onOpenSolver={openSolverWithState} /> : null}
-        {screen === "solver" ? <SolverWorkspace initialStateString={scannedStateString} onOpenScanner={() => setScreen("scan")} /> : null}
+        {screen === "home" ? <HomeScreen onNavigate={navigate} /> : null}
+        {screen === "scan" ? (
+          <ScannerWorkspace
+            key={scannerSeed.revision}
+            initialSession={scannerSeed.session ?? lastScanSession}
+            initialStateString={scannerSeed.stateString ?? scannedStateString}
+            onOpenSolver={openSolverWithState}
+            onSessionChange={setLastScanSession}
+          />
+        ) : null}
+        {screen === "solver" ? <SolverWorkspace initialStateString={scannedStateString} onOpenScanner={openScannerForEdit} /> : null}
         {screen === "learning" ? <LearningWorkspace /> : null}
         {screen === "progress" ? <ProgressWorkspace /> : null}
         {screen === "settings" ? <SettingsWorkspace /> : null}
