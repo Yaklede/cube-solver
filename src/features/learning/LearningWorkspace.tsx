@@ -1,7 +1,8 @@
 import { BookOpen, Clock, Search, Star } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { filterAlgorithms, flattenLessons } from "@/core/learning";
 import type { Algorithm, Method } from "@/core/models";
+import { parseMove } from "@/core/moves";
 import methodsData from "@/data/methods.json";
 import algorithmsData from "@/data/algorithms.json";
 
@@ -80,24 +81,88 @@ export function LearningWorkspace() {
         </div>
         <div className="algorithm-grid">
           {filteredAlgorithms.map((algorithm) => (
-            <article key={algorithm.id} className="algorithm-card">
-              <div className="algorithm-card-header">
-                <strong>{algorithm.caseName}</strong>
-                <button aria-label="즐겨찾기">
-                  <Star size={16} />
-                </button>
-              </div>
-              <code>{algorithm.notation}</code>
-              <p>{algorithm.description}</p>
-              <div className="tag-row">
-                {algorithm.tags.map((tag) => (
-                  <span key={tag}>{tag}</span>
-                ))}
-              </div>
-            </article>
+            <AlgorithmCard key={algorithm.id} algorithm={algorithm} />
           ))}
         </div>
       </section>
     </div>
   );
+}
+
+function AlgorithmCard({ algorithm }: { algorithm: Algorithm }) {
+  const [hidden, setHidden] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [activeStep, setActiveStep] = useState(0);
+  const [playbackMs, setPlaybackMs] = useState(900);
+  const playableMoves = useMemo(() => parsePlayableMoves(algorithm.notation), [algorithm.notation]);
+  const activeMove = playableMoves[activeStep];
+
+  useEffect(() => {
+    if (!playing) return;
+    if (activeStep >= playableMoves.length - 1) {
+      setPlaying(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setActiveStep((step) => step + 1), playbackMs);
+    return () => window.clearTimeout(timer);
+  }, [activeStep, playableMoves.length, playbackMs, playing]);
+
+  function startPlayback() {
+    if (playableMoves.length === 0) return;
+    setActiveStep((step) => (step >= playableMoves.length - 1 ? 0 : step));
+    setPlaying(true);
+  }
+
+  return (
+    <article className={`algorithm-card ${playing ? "playing" : ""}`}>
+      <div className="algorithm-card-header">
+        <strong>{algorithm.caseName}</strong>
+        <button aria-label="즐겨찾기">
+          <Star size={16} />
+        </button>
+      </div>
+      <code>{hidden ? "공식 숨김" : algorithm.notation}</code>
+      <p>{algorithm.description}</p>
+      <div className="algorithm-player">
+        <div className="move-step">
+          <strong>{activeMove?.notation ?? "-"}</strong>
+          <span>{activeMove?.koreanInstruction ?? "재생 가능한 표준 회전이 없습니다."}</span>
+        </div>
+        <div className="playback-controls">
+          <button className="button secondary" onClick={() => setHidden((value) => !value)}>
+            {hidden ? "다시 보기" : "숨기기"}
+          </button>
+          <button className="button secondary" onClick={startPlayback} disabled={playableMoves.length === 0}>
+            재생
+          </button>
+          <button className="button secondary" onClick={() => setPlaying(false)}>
+            정지
+          </button>
+        </div>
+        <label className="range-field">
+          <span>느리게</span>
+          <input type="range" min={300} max={1800} step={100} value={playbackMs} onChange={(event) => setPlaybackMs(Number(event.target.value))} />
+          <span>{playbackMs}ms</span>
+        </label>
+      </div>
+      <div className="tag-row">
+        {algorithm.tags.map((tag) => (
+          <span key={tag}>{tag}</span>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function parsePlayableMoves(notation: string) {
+  return notation
+    .split(/\s+/)
+    .map((token) => {
+      try {
+        return parseMove(token);
+      } catch {
+        return null;
+      }
+    })
+    .filter((move) => move !== null);
 }

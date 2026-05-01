@@ -636,6 +636,48 @@ select {
   height: 34px;
 }
 
+.algorithm-card.playing {
+  border-color: rgba(15, 118, 110, 0.42);
+}
+
+.algorithm-player {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.move-step {
+  display: grid;
+  gap: 4px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 10px;
+}
+
+.move-step strong {
+  font-size: 24px;
+}
+
+.move-step span,
+.range-field span {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.playback-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.range-field {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) 58px;
+  align-items: center;
+  gap: 8px;
+}
+
 .tag-row {
   display: flex;
   flex-wrap: wrap;
