@@ -1,6 +1,6 @@
 import { Check, RotateCcw, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
+import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_COLORS, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
 import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
@@ -20,6 +20,27 @@ import { CameraPreview } from "@/features/camera/CameraPreview";
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
 const AUTO_SCAN_INTERVAL_MS = 450;
 
+interface StickerDiagnostic {
+  index: number;
+  rgb: RgbColor;
+  beforeColor: StickerColor;
+  beforeConfidence: number;
+  afterColor: StickerColor;
+  afterConfidence: number;
+  expectedColor: StickerColor;
+}
+
+interface ScanDiagnostic {
+  face: FaceName;
+  expectedColor: StickerColor;
+  capturedAt: string;
+  averageConfidence: number;
+  readinessReason: string;
+  lowConfidenceCount: number;
+  mismatchedIndexes: number[];
+  stickers: StickerDiagnostic[];
+}
+
 interface ScannerWorkspaceProps {
   onOpenSolver?: (stateString: string) => void;
 }
@@ -34,6 +55,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [autoReadiness, setAutoReadiness] = useState<FaceReadiness | null>(null);
   const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
   const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
+  const [scanDiagnostics, setScanDiagnostics] = useState<Partial<Record<FaceName, ScanDiagnostic>>>({});
   const autoScanStateRef = useRef({ signature: "", stableCount: 0, appliedSignature: "", appliedAt: 0 });
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
@@ -83,6 +105,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
         if (!canApply) return;
 
         const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
+        const diagnostic = createScanDiagnostic(activeFace, samples, nextFace, readiness, result.face, result.averageConfidence);
         state.appliedSignature = signature;
         state.appliedAt = now;
         setColorProfile(result.profile);
@@ -96,6 +119,10 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
             ...previous.faces,
             [activeFace]: result.face,
           },
+        }));
+        setScanDiagnostics((previous) => ({
+          ...previous,
+          [activeFace]: diagnostic,
         }));
         setScanMessage(
           `${activeFace} 면이 자동 인식되었습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했습니다. 검토 후 현재 면 저장을 누르세요.`,
@@ -151,8 +178,11 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
     try {
       const imageData = captureGuideImageData(cameraVideo);
       const samples = sampleNineGrid(imageData);
+      const beforeFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
+      const readiness = analyzeFaceReadiness(beforeFace);
       const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
       const nextFace = result.face;
+      const diagnostic = createScanDiagnostic(activeFace, samples, beforeFace, readiness, nextFace, result.averageConfidence);
       setColorProfile(result.profile);
       setCalibrationSamples((previous) => ({
         ...previous,
@@ -164,6 +194,10 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           ...previous.faces,
           [activeFace]: nextFace,
         },
+      }));
+      setScanDiagnostics((previous) => ({
+        ...previous,
+        [activeFace]: diagnostic,
       }));
       setScanMessage(
         `${activeFace} 면을 인식했습니다. ${COLOR_LABEL[result.expectedCenterColor]} 센터 보정을 반영했고 평균 신뢰도는 ${Math.round(
@@ -201,6 +235,7 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   function resetCalibration() {
     setCalibrationSamples({});
     setColorProfile(createDefaultColorProfile());
+    setScanDiagnostics({});
     setScanMessage("기본 색상 프로필로 되돌렸습니다.");
   }
 
@@ -325,6 +360,8 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
           </div>
         </div>
 
+        <ScanDiagnosticPanel diagnostics={scanDiagnostics} activeFace={activeFace} />
+
         <div className="state-output">
           <h3>상태 문자열</h3>
           <code>{cubeState.stateString}</code>
@@ -335,6 +372,86 @@ export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
         </div>
       </section>
     </div>
+  );
+}
+
+function ScanDiagnosticPanel({ diagnostics, activeFace }: { diagnostics: Partial<Record<FaceName, ScanDiagnostic>>; activeFace: FaceName }) {
+  const diagnostic = diagnostics[activeFace];
+  const capturedFaces = FACE_ORDER.filter((face) => diagnostics[face]);
+  const diagnosticJson = JSON.stringify(
+    {
+      activeFace,
+      capturedFaces,
+      diagnostics,
+    },
+    null,
+    2,
+  );
+
+  async function copyDiagnostic() {
+    await navigator.clipboard.writeText(diagnosticJson);
+  }
+
+  return (
+    <section className="scan-diagnostics" aria-label="스캔 진단 데이터">
+      <div className="scan-diagnostics-header">
+        <div>
+          <h3>스캔 진단</h3>
+          <p>정렬된 큐브 한 면을 수동 인식하면 9칸 원본 RGB, 보정 전/후 분류, 신뢰도가 기록됩니다.</p>
+        </div>
+        <button className="button secondary" onClick={copyDiagnostic} disabled={capturedFaces.length === 0}>
+          진단 JSON 복사
+        </button>
+      </div>
+
+      <div className="diagnostic-face-list" aria-label="진단 완료 면">
+        {FACE_ORDER.map((face) => (
+          <span key={face} className={diagnostics[face] ? "diagnostic-face captured" : "diagnostic-face"}>
+            {face}
+          </span>
+        ))}
+      </div>
+
+      {diagnostic ? (
+        <>
+          <div className="diagnostic-summary">
+            <span>면 {diagnostic.face}</span>
+            <span>기대 색상 {COLOR_LABEL[diagnostic.expectedColor]}</span>
+            <span>평균 신뢰도 {Math.round(diagnostic.averageConfidence * 100)}%</span>
+            <span>불일치 {diagnostic.mismatchedIndexes.length}칸</span>
+            <span>낮은 신뢰도 {diagnostic.lowConfidenceCount}칸</span>
+          </div>
+          <p className={diagnostic.mismatchedIndexes.length > 0 ? "diagnostic-reason warning" : "diagnostic-reason"}>
+            {diagnostic.readinessReason}
+            {diagnostic.mismatchedIndexes.length > 0 ? ` 불일치 칸: ${diagnostic.mismatchedIndexes.map((index) => index + 1).join(", ")}` : ""}
+          </p>
+          <div className="diagnostic-grid" role="table" aria-label={`${diagnostic.face} 면 색상 진단`}>
+            <div className="diagnostic-row diagnostic-heading" role="row">
+              <span>칸</span>
+              <span>RGB</span>
+              <span>보정 전</span>
+              <span>보정 후</span>
+              <span>기대</span>
+            </div>
+            {diagnostic.stickers.map((sticker) => (
+              <div key={sticker.index} className={sticker.afterColor === sticker.expectedColor ? "diagnostic-row" : "diagnostic-row mismatch"} role="row">
+                <span>{sticker.index + 1}</span>
+                <span>{formatRgb(sticker.rgb)}</span>
+                <span>
+                  {COLOR_LABEL[sticker.beforeColor]} {Math.round(sticker.beforeConfidence * 100)}%
+                </span>
+                <span>
+                  {COLOR_LABEL[sticker.afterColor]} {Math.round(sticker.afterConfidence * 100)}%
+                </span>
+                <span>{COLOR_LABEL[sticker.expectedColor]}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : (
+        <p className="diagnostic-empty">아직 {activeFace} 면 진단 데이터가 없습니다. 자동 인식을 끄고 카메라에서 인식을 누르세요.</p>
+      )}
+    </section>
   );
 }
 
@@ -363,6 +480,41 @@ function AutoScanReadiness({ readiness, enabled }: { readiness: FaceReadiness | 
 
 function getFaceSignature(face: CubeFace): string {
   return face.stickers.map((sticker) => sticker.color).join("-");
+}
+
+function createScanDiagnostic(
+  face: FaceName,
+  samples: RgbColor[],
+  beforeFace: CubeFace,
+  readiness: FaceReadiness,
+  afterFace: CubeFace,
+  averageConfidence: number,
+): ScanDiagnostic {
+  const expectedColor = FACE_COLORS[face];
+  const stickers = samples.map((rgb, index): StickerDiagnostic => {
+    const beforeSticker = beforeFace.stickers[index];
+    const afterSticker = afterFace.stickers[index];
+    return {
+      index,
+      rgb,
+      beforeColor: beforeSticker.color,
+      beforeConfidence: beforeSticker.confidence,
+      afterColor: afterSticker.color,
+      afterConfidence: afterSticker.confidence,
+      expectedColor,
+    };
+  });
+
+  return {
+    face,
+    expectedColor,
+    capturedAt: new Date().toISOString(),
+    averageConfidence,
+    readinessReason: readiness.reason,
+    lowConfidenceCount: readiness.lowConfidenceCount,
+    mismatchedIndexes: stickers.filter((sticker) => sticker.afterColor !== expectedColor).map((sticker) => sticker.index),
+    stickers,
+  };
 }
 
 function buildColorProfile(samples: Partial<Record<StickerColor, RgbColor>>) {
