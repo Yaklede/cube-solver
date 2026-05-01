@@ -1,7 +1,11 @@
-import fridrichSolve from "rubiks-cube-solver";
+import * as rubiksSolverModule from "rubiks-cube-solver";
 import { SOLVED_STATE_STRING, validateCubeStateString } from "@/core/cube-state";
 import { parseAlgorithm } from "@/core/moves";
 import type { SolverResult } from "@/core/models";
+
+type RubiksSolverFunction = (stateString: string, options?: { partitioned?: boolean }) => unknown;
+
+const fridrichSolve = resolveRubiksSolver(rubiksSolverModule);
 
 export async function solveCubeState(stateString: string): Promise<SolverResult> {
   const validation = validateCubeStateString(stateString);
@@ -87,6 +91,22 @@ function normalizeSolverOutput(rawSolution: unknown): string {
   }
 
   return tokens.join(" ");
+}
+
+function resolveRubiksSolver(moduleValue: unknown): RubiksSolverFunction {
+  const moduleRecord = moduleValue as Record<string, unknown>;
+  const candidates = [
+    moduleValue,
+    moduleRecord.default,
+    moduleRecord.rubiksCubeSolver,
+    typeof moduleRecord.default === "object" && moduleRecord.default ? (moduleRecord.default as Record<string, unknown>).default : undefined,
+    typeof moduleRecord.default === "object" && moduleRecord.default ? (moduleRecord.default as Record<string, unknown>).rubiksCubeSolver : undefined,
+  ];
+  const solver = candidates.find((candidate): candidate is RubiksSolverFunction => typeof candidate === "function");
+  if (!solver) {
+    throw new Error("rubiks-cube-solver 함수 export를 찾을 수 없습니다.");
+  }
+  return solver;
 }
 
 function flattenSolution(rawSolution: unknown): string[] {
