@@ -1,0 +1,51 @@
+name: desktop-build
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - ".github/workflows/desktop-build.yml"
+      - "package.json"
+      - "package-lock.json"
+      - "src-tauri/**"
+      - "src/**"
+      - "public/**"
+      - "vite.config.ts"
+      - "tsconfig*.json"
+
+jobs:
+  tauri:
+    name: tauri-${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: npm ci
+
+      - run: npm run validate:build-scripts
+
+      - if: matrix.os == 'macos-latest'
+        run: npm run tauri:build:macos-ci
+
+      - if: matrix.os == 'windows-latest'
+        run: npm run tauri:build:windows-ci
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: cube-solver-trainer-${{ matrix.os }}
+          path: |
+            src-tauri/target/release/bundle/**/*.app
+            src-tauri/target/release/bundle/**/*.msi
+            src-tauri/target/release/bundle/**/*.exe
+          if-no-files-found: error

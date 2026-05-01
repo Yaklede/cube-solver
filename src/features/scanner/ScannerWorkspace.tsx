@@ -1,8 +1,9 @@
-import { Check, RotateCcw } from "lucide-react";
-import { useMemo, useState } from "react";
+import { Check, RotateCcw, ScanLine } from "lucide-react";
+import { useCallback, useMemo, useState } from "react";
 import { buildCubeState, createEmptyScanSession, createSolvedFace, FACE_ORDER, updateSticker } from "@/core/cube-state";
-import { createDefaultColorProfile } from "@/core/color-recognition";
-import type { CubeFace, FaceName, StickerColor } from "@/core/models";
+import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
+import type { CubeFace, FaceName, RgbColor, StickerColor } from "@/core/models";
+import { captureGuideImageData, getLowConfidenceStickerIndexes, LOW_CONFIDENCE_THRESHOLD, recognizeFaceFromSamples } from "@/core/scan-frame";
 import { CameraPreview } from "@/features/camera/CameraPreview";
 
 const COLORS: StickerColor[] = ["white", "yellow", "red", "orange", "blue", "green"];
@@ -16,13 +17,23 @@ const COLOR_LABEL: Record<StickerColor, string> = {
   green: "초록",
 };
 
-export function ScannerWorkspace() {
+interface ScannerWorkspaceProps {
+  onOpenSolver?: (stateString: string) => void;
+}
+
+export function ScannerWorkspace({ onOpenSolver }: ScannerWorkspaceProps) {
   const [session, setSession] = useState(() => createEmptyScanSession());
   const [selectedColor, setSelectedColor] = useState<StickerColor>("white");
-  const colorProfile = useMemo(() => createDefaultColorProfile(), []);
+  const [selectedCalibrationColor, setSelectedCalibrationColor] = useState<StickerColor>("white");
+  const [cameraVideo, setCameraVideo] = useState<HTMLVideoElement | null>(null);
+  const [scanMessage, setScanMessage] = useState("카메라 인식 전입니다. 수동 수정 또는 샘플 저장을 사용할 수 있습니다.");
+  const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
+  const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
+  const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
+  const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
 
   function saveFace(face: CubeFace) {
     const currentIndex = FACE_ORDER.indexOf(activeFace);
@@ -56,9 +67,63 @@ export function ScannerWorkspace() {
     }));
   }
 
+  function recognizeCurrentFace() {
+    if (!cameraVideo) {
+      setScanMessage("카메라가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    try {
+      const imageData = captureGuideImageData(cameraVideo);
+      const samples = sampleNineGrid(imageData);
+      const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
+      const averageConfidence =
+        nextFace.stickers.reduce((total, sticker) => total + sticker.confidence, 0) / nextFace.stickers.length;
+      setSession((previous) => ({
+        ...previous,
+        faces: {
+          ...previous.faces,
+          [activeFace]: nextFace,
+        },
+      }));
+      setScanMessage(`${activeFace} 면을 인식했습니다. 평균 신뢰도 ${Math.round(averageConfidence * 100)}%입니다.`);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
+    }
+  }
+
+  function captureCalibrationSample() {
+    if (!cameraVideo) {
+      setScanMessage("카메라가 아직 준비되지 않았습니다.");
+      return;
+    }
+
+    try {
+      const imageData = captureGuideImageData(cameraVideo);
+      const centerSample = sampleNineGrid(imageData)[4];
+      setCalibrationSamples((previous) => {
+        const nextSamples = {
+          ...previous,
+          [selectedCalibrationColor]: centerSample,
+        };
+        setColorProfile(buildColorProfile(nextSamples));
+        return nextSamples;
+      });
+      setScanMessage(`${COLOR_LABEL[selectedCalibrationColor]} 기준 색상을 저장했습니다.`);
+    } catch (error) {
+      setScanMessage(error instanceof Error ? error.message : "색상 보정 샘플 캡처에 실패했습니다.");
+    }
+  }
+
+  function resetCalibration() {
+    setCalibrationSamples({});
+    setColorProfile(createDefaultColorProfile());
+    setScanMessage("기본 색상 프로필로 되돌렸습니다.");
+  }
+
   return (
     <div className="workspace-grid">
-      <CameraPreview />
+      <CameraPreview onReady={rememberCamera} />
       <section className="panel">
         <div className="panel-header">
           <div>
@@ -85,11 +150,12 @@ export function ScannerWorkspace() {
             {currentFace.stickers.map((sticker) => (
               <button
                 key={sticker.id}
-                className={`sticker sticker-${sticker.color}`}
+                className={`sticker sticker-${sticker.color} ${lowConfidenceIndexes.includes(sticker.index) ? "low-confidence" : ""}`}
                 onClick={() => editSticker(sticker.index)}
                 aria-label={`${activeFace} ${sticker.index + 1}번 칸 ${COLOR_LABEL[sticker.color]}`}
               >
                 {sticker.index === 4 ? activeFace : ""}
+                <span className="sticker-confidence">{Math.round(sticker.confidence * 100)}</span>
               </button>
             ))}
           </div>
@@ -111,15 +177,47 @@ export function ScannerWorkspace() {
 
             <div className="calibration-summary">
               <h3>색상 보정</h3>
-              <p>{colorProfile.samples.length}개 기준 색상과 흰색 기준 보정값을 사용합니다.</p>
+              <p>
+                {Object.keys(calibrationSamples).length} / {COLORS.length}개 기준 색상을 저장했습니다.
+              </p>
+              <div className="calibration-controls">
+                <select value={selectedCalibrationColor} onChange={(event) => setSelectedCalibrationColor(event.target.value as StickerColor)} aria-label="보정할 기준 색상">
+                  {COLORS.map((color) => (
+                    <option key={color} value={color}>
+                      {COLOR_LABEL[color]}
+                    </option>
+                  ))}
+                </select>
+                <button className="button secondary" onClick={captureCalibrationSample}>
+                  기준 색상 캡처
+                </button>
+                <button className="button secondary" onClick={resetCalibration}>
+                  기본값
+                </button>
+              </div>
+              <div className="calibration-swatches" aria-label="저장된 보정 색상">
+                {COLORS.map((color) => (
+                  <span key={color} className={`calibration-chip ${calibrationSamples[color] ? "captured" : ""}`}>
+                    <span className={`swatch swatch-${color}`} />
+                    <span>{COLOR_LABEL[color]}</span>
+                    <span className="rgb-readout">{formatRgb(calibrationSamples[color])}</span>
+                  </span>
+                ))}
+              </div>
             </div>
 
             <button className="button primary" onClick={() => saveFace(currentFace)}>
               현재 면 저장
             </button>
+            <button className="button secondary" onClick={recognizeCurrentFace}>
+              <ScanLine size={16} />
+              카메라에서 인식
+            </button>
             <button className="button secondary" onClick={fillWithSolvedSample}>
               샘플 면 저장
             </button>
+            <p className="scan-feedback">{scanMessage}</p>
+            <ReviewNotice indexes={lowConfidenceIndexes} />
           </div>
         </div>
 
@@ -127,10 +225,39 @@ export function ScannerWorkspace() {
           <h3>상태 문자열</h3>
           <code>{cubeState.stateString}</code>
           <ValidationSummary valid={cubeState.validation.valid} errors={cubeState.validation.errors} warnings={cubeState.validation.warnings} />
+          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString)} disabled={!cubeState.validation.valid}>
+            풀이 안내로 보내기
+          </button>
         </div>
       </section>
     </div>
   );
+}
+
+function ReviewNotice({ indexes }: { indexes: number[] }) {
+  if (indexes.length === 0) {
+    return <p className="review-notice">신뢰도 {Math.round(LOW_CONFIDENCE_THRESHOLD * 100)}% 미만 칸이 없습니다.</p>;
+  }
+
+  return (
+    <p className="review-notice warning">
+      낮은 신뢰도 칸: {indexes.map((index) => index + 1).join(", ")}. 다시 인식하거나 팔레트로 해당 칸을 수정하세요.
+    </p>
+  );
+}
+
+function buildColorProfile(samples: Partial<Record<StickerColor, RgbColor>>) {
+  return calibrateColorProfile(
+    COLORS.map((color) => ({
+      color,
+      rgb: samples[color] ?? DEFAULT_COLOR_RGB[color],
+    })),
+  );
+}
+
+function formatRgb(rgb?: RgbColor): string {
+  if (!rgb) return "미저장";
+  return `${rgb.r},${rgb.g},${rgb.b}`;
 }
 
 function ValidationSummary({ valid, errors, warnings }: { valid: boolean; errors: string[]; warnings: string[] }) {

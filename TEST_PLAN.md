@@ -50,3 +50,7 @@ npm run validate:all
 - 랜덤 테스트/기록 화면에서 성공/실패 기록이 누적된다.
 - 모바일 폭에서 화면이 가로 스크롤 없이 동작한다.
 - Tauri config가 macOS/Windows target을 포함한다.
+
+## 모바일 PWA QA
+
+모바일 실기기 확인은 `docs/mobile-pwa-qa.md`를 따른다. 카메라 API 제약 때문에 원격 모바일 기기에서는 HTTPS 배포 URL 또는 터널이 필요하다.
