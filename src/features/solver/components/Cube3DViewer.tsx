@@ -16,7 +16,6 @@ interface Cube3DViewerProps {
   stateString: string;
   moves: Move[];
   appliedMoveCount: number;
-  activeMove?: Move;
 }
 
 interface SceneState {
@@ -31,6 +30,7 @@ interface SceneState {
 }
 
 const STICKER_SIZE = 0.58;
+export const CUBE_IDLE_ROTATION_RADIANS_PER_FRAME = 0;
 
 const SYMBOL_COLOR: Record<FaceName, string> = {
   U: VISUAL_FACE_COLORS.U,
@@ -41,7 +41,7 @@ const SYMBOL_COLOR: Record<FaceName, string> = {
   B: VISUAL_FACE_COLORS.B,
 };
 
-export function Cube3DViewer({ stateString, moves, appliedMoveCount, activeMove }: Cube3DViewerProps) {
+export function Cube3DViewer({ stateString, moves, appliedMoveCount }: Cube3DViewerProps) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const sceneRef = useRef<SceneState | null>(null);
 
@@ -86,7 +86,9 @@ export function Cube3DViewer({ stateString, moves, appliedMoveCount, activeMove 
 
     let rafId = 0;
     const render = () => {
-      cubeRoot.rotation.y += 0.002;
+      if (CUBE_IDLE_ROTATION_RADIANS_PER_FRAME !== 0) {
+        cubeRoot.rotation.y += CUBE_IDLE_ROTATION_RADIANS_PER_FRAME;
+      }
       renderer.render(scene, camera);
       rafId = window.requestAnimationFrame(render);
     };
@@ -151,11 +153,19 @@ export function Cube3DViewer({ stateString, moves, appliedMoveCount, activeMove 
     <section className="cube-viewer" aria-label="현재 풀이 단계 3D 큐브">
       <div className="cube-viewer-header">
         <h3>3D 큐브</h3>
-        <span>{activeMove ? `${activeMove.notation} 대기` : "완료 상태"}</span>
+        <span>{formatRenderedMoveStatus(appliedMoveCount, moves.length)}</span>
       </div>
       <div ref={hostRef} className="cube-viewer-stage" data-testid="cube-3d-stage" />
     </section>
   );
+}
+
+export function formatRenderedMoveStatus(appliedMoveCount: number, totalMoveCount: number): string {
+  if (totalMoveCount <= 0) return "완료 상태";
+  const safeAppliedCount = Math.min(totalMoveCount, Math.max(0, appliedMoveCount));
+  if (safeAppliedCount === 0) return `시작 상태 · 0 / ${totalMoveCount}`;
+  if (safeAppliedCount === totalMoveCount) return `완료 상태 · ${totalMoveCount} / ${totalMoveCount}`;
+  return `${safeAppliedCount}수 반영 · ${safeAppliedCount} / ${totalMoveCount}`;
 }
 
 function animateMove(sceneState: SceneState, previousState: string, targetState: string, move: Move, direction: 1 | -1) {
