@@ -177,7 +177,7 @@ export interface PracticeSession {
   id: string;
   startedAt: string;
   endedAt?: string;
-  mode: "algorithm" | "oll" | "pll" | "cross" | "solver-recovery";
+  mode: "algorithm" | "oll" | "pll" | "cross" | "d-cross" | "f2l" | "full-solve" | "full-scramble" | "solver-recovery";
   targetCaseId?: string;
   cameraVerificationEnabled: boolean;
   results: PracticeResult[];
