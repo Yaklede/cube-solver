@@ -356,3 +356,20 @@
 스크린샷 또는 확인 가능한 결과: in-app browser에서 `다음` 클릭 후 단계가 `2 / 49`로 변경되고, 3D 캔버스 하단 영역 픽셀 diff `20885 / 67620` 확인.
 남은 문제: 3D chunk가 512.74 kB라 장기적으로 Three.js 세부 chunk 분리 또는 경량 렌더링 전략을 검토할 수 있다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
+
+## 22단계
+
+[단계 결과 보고서]
+
+단계 번호: 22
+단계 이름: 3D 큐브 색상 표시와 풀이 시작 기준 보강
+이번 단계 목표: 현재 인식된 큐브 색상이 3D 큐브에 실제로 보이도록 하고, 사용자가 풀이 첫 수를 시작할 기준 방향을 알 수 있게 한다.
+완료한 작업: 3D 스티커 렌더링 위치를 큐브 표면 밖으로 보정하고, 상태 문자열의 센터 색상 기반 시작 기준 안내를 풀이 패널에 추가했다.
+생성/수정한 파일: `src/core/cube-visualization.ts`, `src/core/orientation-guide.ts`, `src/features/solver/components/Cube3DViewer.tsx`, `src/features/solver/SolverWorkspace.tsx`, `src/app/styles.css`, `tests/cube-visualization.test.ts`, `tests/orientation-guide.test.ts`, `TASK.md`, `README.md`, `USER_GUIDE.md`
+핵심 구현 내용: 스티커 평면이 cubie 내부에 묻히지 않도록 공통 렌더 좌표 계산을 만들고, `U`, `F`, `R` 센터 색상으로 "위/앞/오른쪽" 시작 기준을 표시한다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 상태 문자열을 입력하고 `풀이 생성`을 누른다.
+테스트 방법: `npm run test -- tests/cube-visualization.test.ts tests/orientation-guide.test.ts`, `npm run build`, in-app browser 수동 확인.
+테스트 결과: 대상 단위 테스트 2개 파일 6개 테스트 통과, production build 통과, 브라우저에서 3D 색상과 시작 기준 안내 확인.
+스크린샷 또는 확인 가능한 결과: 현재 테스트 상태 문자열에서 3D 큐브의 주황/파랑/초록/빨강/흰색 스티커가 보이며, 3D 영역 색상 픽셀 검증에서 saturated 62743개를 확인했다.
+남은 문제: 3D chunk 크기는 여전히 500 kB 이상이라 후속 최적화 대상이다.
+다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.

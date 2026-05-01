@@ -732,11 +732,58 @@ select {
   margin: 12px 0 0;
 }
 
-.solution-step strong {
+.solution-step > strong {
   display: block;
   font-size: 44px;
   line-height: 1;
   margin: 12px 0;
+}
+
+.orientation-guide {
+  display: grid;
+  gap: 8px;
+  margin: 14px 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-muted);
+  padding: 12px;
+}
+
+.orientation-guide strong,
+.orientation-guide p {
+  margin: 0;
+}
+
+.orientation-guide strong {
+  font-size: 14px;
+}
+
+.orientation-guide p {
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.orientation-guide-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.orientation-guide-list > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #334155;
+  font-size: 13px;
+}
+
+.orientation-swatch {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(17, 24, 39, 0.24);
+  border-radius: 4px;
 }
 
 .step-count {
