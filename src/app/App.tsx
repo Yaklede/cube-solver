@@ -52,7 +52,7 @@ export function App() {
       <main className="main-area">
         {screen === "home" ? <HomeScreen onNavigate={setScreen} /> : null}
         {screen === "scan" ? <ScannerWorkspace onOpenSolver={openSolverWithState} /> : null}
-        {screen === "solver" ? <SolverWorkspace initialStateString={scannedStateString} /> : null}
+        {screen === "solver" ? <SolverWorkspace initialStateString={scannedStateString} onOpenScanner={() => setScreen("scan")} /> : null}
         {screen === "learning" ? <LearningWorkspace /> : null}
         {screen === "progress" ? <ProgressWorkspace /> : null}
         {screen === "settings" ? <SettingsWorkspace /> : null}

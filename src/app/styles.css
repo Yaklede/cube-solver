@@ -518,6 +518,10 @@ select {
   padding: 18px;
 }
 
+.solver-actions {
+  margin: 12px 0 0;
+}
+
 .solution-step strong {
   display: block;
   font-size: 44px;
