@@ -1,11 +1,18 @@
 import { TimerReset } from "lucide-react";
-import { useMemo, useState } from "react";
-import { applyPracticeResult, createInitialProgress } from "@/core/progress";
+import { useEffect, useMemo, useState } from "react";
+import { applyPracticeResult, createInitialProgress, loadProgress, saveProgress } from "@/core/progress";
 import type { PracticeResult } from "@/core/models";
 
 export function ProgressWorkspace() {
-  const [progress, setProgress] = useState(() => createInitialProgress());
+  const [progress, setProgress] = useState(() => {
+    if (typeof window === "undefined") return createInitialProgress();
+    return loadProgress(window.localStorage);
+  });
   const latest = useMemo(() => Object.values(progress.algorithmProgress).toSorted((a, b) => (b.lastPracticedAt ?? "").localeCompare(a.lastPracticedAt ?? "")), [progress]);
+
+  useEffect(() => {
+    saveProgress(window.localStorage, progress);
+  }, [progress]);
 
   function recordSample(success: boolean) {
     const result: PracticeResult = {
@@ -53,6 +60,7 @@ export function ProgressWorkspace() {
         ))}
       </div>
       <p className="muted">약점 공식: {progress.weakAlgorithmIds.length ? progress.weakAlgorithmIds.join(", ") : "없음"}</p>
+      <p className="muted">기록은 이 브라우저에 자동 저장됩니다.</p>
     </section>
   );
 }
