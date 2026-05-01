@@ -4,10 +4,12 @@ import { requestCameraStream } from "@/core/camera";
 
 interface CameraPreviewProps {
   showGuide?: boolean;
+  guideStatus?: "idle" | "aligning" | "ready";
+  guideLabel?: string;
   onReady?: (video: HTMLVideoElement) => void;
 }
 
-export function CameraPreview({ showGuide = true, onReady }: CameraPreviewProps) {
+export function CameraPreview({ showGuide = true, guideStatus = "idle", guideLabel, onReady }: CameraPreviewProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [status, setStatus] = useState<"idle" | "ready" | "error">("idle");
   const [message, setMessage] = useState("카메라를 준비하고 있습니다.");
@@ -40,7 +42,7 @@ export function CameraPreview({ showGuide = true, onReady }: CameraPreviewProps)
   return (
     <section className="camera-frame" aria-label="카메라 프리뷰">
       <video ref={videoRef} className="camera-video" playsInline muted />
-      {showGuide ? <CubeScanGuide /> : null}
+      {showGuide ? <CubeScanGuide status={guideStatus} label={guideLabel} /> : null}
       <div className={`camera-status camera-status-${status}`}>
         {status === "error" ? <CameraOff size={18} /> : <Camera size={18} />}
         <span>{message}</span>
@@ -49,12 +51,13 @@ export function CameraPreview({ showGuide = true, onReady }: CameraPreviewProps)
   );
 }
 
-export function CubeScanGuide() {
+export function CubeScanGuide({ status = "idle", label }: { status?: "idle" | "aligning" | "ready"; label?: string }) {
   return (
-    <div className="scan-guide" aria-hidden="true">
+    <div className={`scan-guide scan-guide-${status}`} aria-hidden="true">
       {Array.from({ length: 9 }, (_, index) => (
         <div key={index} className="scan-guide-cell" />
       ))}
+      {label ? <span className="scan-guide-label">{label}</span> : null}
     </div>
   );
 }

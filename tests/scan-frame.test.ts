@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
-import { calculateGuideCrop, getLowConfidenceStickerIndexes, recognizeFaceFromSamples } from "@/core/scan-frame";
+import { analyzeFaceReadiness, calculateGuideCrop, getLowConfidenceStickerIndexes, recognizeFaceFromSamples } from "@/core/scan-frame";
 
 describe("scan frame helpers", () => {
   it("calculates a centered square crop for cover-fitted video", () => {
@@ -26,5 +26,15 @@ describe("scan frame helpers", () => {
     face.stickers[1] = { ...face.stickers[1], confidence: 0.4 };
     face.stickers[2] = { ...face.stickers[2], confidence: 0.4, manuallyEdited: true };
     expect(getLowConfidenceStickerIndexes(face)).toEqual([1]);
+  });
+
+  it("marks a face ready only when the expected center matches", () => {
+    const profile = createDefaultColorProfile();
+    const readyFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.green), profile);
+    expect(analyzeFaceReadiness(readyFace).ready).toBe(true);
+
+    const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
+    expect(analyzeFaceReadiness(wrongCenterFace).ready).toBe(false);
+    expect(analyzeFaceReadiness(wrongCenterFace).centerMatchesExpected).toBe(false);
   });
 });
