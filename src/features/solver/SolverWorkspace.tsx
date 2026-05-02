@@ -2,7 +2,13 @@ import { ChevronLeft, ChevronRight, Play, ScanLine } from "lucide-react";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { SOLVED_STATE_STRING } from "@/core/cube-state";
 import { applyMoves } from "@/core/moves";
-import { buildOrientationGuide, formatOrientationInstruction, type OrientationMode } from "@/core/orientation-guide";
+import {
+  buildOrientationGuide,
+  formatOrientationInstruction,
+  orientMovesForMode,
+  orientStateForMode,
+  type OrientationMode,
+} from "@/core/orientation-guide";
 import { solveCubeState } from "@/core/solver";
 import type { SolverResult } from "@/core/models";
 
@@ -39,15 +45,17 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
     setBusy(false);
   }
 
+  const displayedMoves = useMemo(() => (result ? orientMovesForMode(result.moves, orientationMode) : []), [orientationMode, result]);
   const visualStateString = useMemo(() => {
-    if (!result) return stateString.trim();
-    return applyMoves(result.stateString, result.moves.slice(0, activeStep));
-  }, [activeStep, result, stateString]);
-  const activeMove = result && activeStep < result.moves.length ? result.moves[activeStep] : undefined;
-  const hasMoves = result ? result.moves.length > 0 : false;
-  const isComplete = result ? hasMoves && activeStep >= result.moves.length : false;
+    const baseState = orientStateForMode(result?.stateString ?? stateString.trim(), orientationMode);
+    if (!result) return baseState;
+    return applyMoves(baseState, displayedMoves.slice(0, activeStep));
+  }, [activeStep, displayedMoves, orientationMode, result, stateString]);
+  const activeMove = activeStep < displayedMoves.length ? displayedMoves[activeStep] : undefined;
+  const hasMoves = displayedMoves.length > 0;
+  const isComplete = result ? hasMoves && activeStep >= displayedMoves.length : false;
   const needsScanEdit = result?.status === "fallback" || result?.status === "invalid";
-  const stepLabel = result?.status === "solved" ? "완료" : !hasMoves ? "확인 필요" : isComplete ? "완료" : `${activeStep + 1}`;
+  const stepLabel = result?.status === "solved" ? "완료" : !result || !hasMoves ? "확인 필요" : isComplete ? "완료" : `${activeStep + 1}`;
   const orientationGuide = useMemo(() => buildOrientationGuide(result?.stateString ?? stateString.trim(), orientationMode), [orientationMode, result, stateString]);
   const orientationInstruction = useMemo(() => formatOrientationInstruction(orientationGuide), [orientationGuide]);
 
@@ -103,7 +111,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
         <div className="solution-layout">
           <div className="solution-step">
             <span className="step-count">
-              {stepLabel} / {result.moves.length}
+              {stepLabel} / {displayedMoves.length}
             </span>
             <strong>{activeMove?.notation ?? (result.status === "solved" ? "완료" : "확인 필요")}</strong>
             <p>{activeMove?.koreanInstruction ?? result.summary}</p>
@@ -139,7 +147,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
               </button>
               <button
                 className="button secondary"
-                onClick={() => setActiveStep((value) => Math.min(result.moves.length, value + 1))}
+                onClick={() => setActiveStep((value) => Math.min(displayedMoves.length, value + 1))}
                 disabled={!hasMoves || isComplete}
               >
                 다음
@@ -154,14 +162,14 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
           <Suspense fallback={<div className="cube-viewer cube-viewer-loading">3D 큐브 준비 중</div>}>
             <Cube3DViewer
               appliedMoveCount={activeStep}
-              moves={result.moves}
+              moves={displayedMoves}
               stateString={visualStateString}
             />
           </Suspense>
 
           {hasMoves ? (
             <ol className="move-list">
-              {result.moves.map((move, index) => (
+              {displayedMoves.map((move, index) => (
                 <li key={`${move.notation}-${index}`} className={index === activeStep ? "active" : ""}>
                   <button onClick={() => setActiveStep(index)}>
                     <span>{move.notation}</span>
@@ -170,7 +178,7 @@ export function SolverWorkspace({ initialStateString = SOLVED_STATE_STRING, onOp
                 </li>
               ))}
               <li className={isComplete ? "active" : ""}>
-                <button onClick={() => setActiveStep(result.moves.length)}>
+                <button onClick={() => setActiveStep(displayedMoves.length)}>
                   <span>완료</span>
                   <small>모든 회전을 반영한 상태</small>
                 </button>

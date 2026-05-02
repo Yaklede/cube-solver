@@ -459,6 +459,23 @@
 남은 문제: 실제 카메라 환경에서 fallback 빈도와 오인식률은 추가 실측이 필요하다.
 다음 단계에서 할 일: PR 외부검증, merge.
 
+## 32단계
+
+[단계 결과 보고서]
+
+단계 번호: 32
+단계 이름: 흰색 밑면 풀이 기준 동기화
+이번 단계 목표: `흰색 아래` 시작 기준을 선택했을 때 안내 문구뿐 아니라 공식 표기와 3D 풀이 상태도 같은 물리 방향을 사용하게 한다.
+완료한 작업: 흰색 아래 기준의 실제 잡는 방향을 `흰색 아래 / 초록 앞 / 주황 오른쪽`으로 수정했다. solver 내부 좌표계의 상태와 move를 흰색 아래 표시 좌표계로 변환하는 `orientStateForMode`, `orientMovesForMode`를 추가하고, 풀이 화면과 3D 뷰어가 변환된 move/state를 사용하도록 연결했다.
+생성/수정한 파일: `src/core/orientation-guide.ts`, `src/features/solver/SolverWorkspace.tsx`, `tests/orientation-guide.test.ts`, `TASK.md`, `docs/stage-reports/STAGE_REPORTS.md`, `.serena/memories/debug/white-bottom-reference-mismatch.md`
+핵심 구현 내용: 흰색 아래 모드는 front/back 축 기준 180도 회전한 표시 좌표계를 사용한다. `U<->D`, `R<->L`, wide move도 같은 방식으로 바꾸며, 가운데층 `M/E`는 방향을 반전해 표시 move와 3D 상태 적용이 일치하도록 했다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 `흰색 아래`를 선택하고 풀이를 생성한다.
+테스트 방법: `npm run test -- tests/orientation-guide.test.ts tests/solver.test.ts tests/moves.test.ts tests/cube-visualization.test.ts`, `npm run validate:all`
+테스트 결과: 대상 단위 테스트 4개 파일 24개 테스트 통과, 전체 검증 17개 파일 69개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: orientation 회귀 테스트에서 흰색 아래 기준 안내가 `아래:흰색`, `앞:초록`, `오른쪽:주황`으로 생성되고, 변환된 visual state와 displayed move 적용 결과가 일치한다.
+남은 문제: 3D viewer chunk size 경고는 기존과 동일하게 후속 최적화 대상이다.
+다음 단계에서 할 일: PR 외부검증, merge.
+
 ## 31단계
 
 [단계 결과 보고서]
