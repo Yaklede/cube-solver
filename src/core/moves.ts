@@ -1,6 +1,6 @@
-import type { FaceName, Move } from "@/core/models";
+import type { FaceName, Move, MoveFace, WideMoveFace } from "@/core/models";
 
-const MOVE_PATTERN = /^([URFDLB])([2']?)$/;
+const MOVE_PATTERN = /^([URFDLBurfdlb])([2']?)$/;
 
 const FACE_INSTRUCTIONS: Record<FaceName, string> = {
   U: "윗면",
@@ -9,6 +9,15 @@ const FACE_INSTRUCTIONS: Record<FaceName, string> = {
   D: "아랫면",
   L: "왼쪽 면",
   B: "뒷면",
+};
+
+const WIDE_FACE_INSTRUCTIONS: Record<WideMoveFace, string> = {
+  u: "윗 두 층",
+  r: "오른쪽 두 층",
+  f: "앞 두 층",
+  d: "아랫 두 층",
+  l: "왼쪽 두 층",
+  b: "뒷 두 층",
 };
 
 interface StickerCoordinate {
@@ -48,7 +57,7 @@ export function parseMove(notation: string): Move {
   if (!match) {
     throw new Error(`지원하지 않는 회전 표기법입니다: ${notation}`);
   }
-  const face = match[1] as FaceName;
+  const face = match[1] as MoveFace;
   const suffix = match[2];
   const amount = suffix === "2" ? 2 : suffix === "'" ? -1 : 1;
   return {
@@ -70,7 +79,7 @@ export function parseAlgorithm(algorithm: string): Move[] {
 
 export function getMoveInstruction(notation: string): string {
   const move = parseMoveWithoutInstruction(notation);
-  const faceLabel = FACE_INSTRUCTIONS[move.face];
+  const faceLabel = isWideMoveFace(move.face) ? WIDE_FACE_INSTRUCTIONS[move.face] : FACE_INSTRUCTIONS[move.face];
   if (move.amount === 2) return `${faceLabel}을 180도 돌리세요.`;
   if (move.amount === -1) return `${faceLabel}을 반시계 방향으로 90도 돌리세요.`;
   return `${faceLabel}을 시계 방향으로 90도 돌리세요.`;
@@ -103,16 +112,17 @@ function applyMove(stateString: string, move: Move): string {
   return state;
 }
 
-function applyQuarterTurn(stateString: string, face: FaceName): string {
+function applyQuarterTurn(stateString: string, face: MoveFace): string {
   const coordinates = buildCoordinates();
   const lookup = buildCoordinateLookup(coordinates);
   const next = stateString.split("");
-  const axisIndex = axisForFace(face);
-  const layer = layerForFace(face);
-  const angle = MOVE_ANGLE[face];
+  const baseFace = getBaseMoveFace(face);
+  const axisIndex = axisForFace(baseFace);
+  const layers = getMoveLayers(face);
+  const angle = MOVE_ANGLE[baseFace];
 
   coordinates.forEach((coordinate, sourceIndex) => {
-    if (coordinate.position[axisIndex] !== layer) return;
+    if (!layers.includes(coordinate.position[axisIndex])) return;
     const rotated = {
       position: rotateVector(coordinate.position, axisIndex, angle),
       normal: rotateVector(coordinate.normal, axisIndex, angle),
@@ -132,10 +142,23 @@ function parseMoveWithoutInstruction(notation: string): Pick<Move, "face" | "amo
   if (!match) throw new Error(`지원하지 않는 회전 표기법입니다: ${notation}`);
   const suffix = match[2];
   return {
-    face: match[1] as FaceName,
+    face: match[1] as MoveFace,
     amount: suffix === "2" ? 2 : suffix === "'" ? -1 : 1,
     notation: `${match[1]}${suffix}`,
   };
+}
+
+function getBaseMoveFace(face: MoveFace): FaceName {
+  return face.toUpperCase() as FaceName;
+}
+
+function isWideMoveFace(face: MoveFace): face is WideMoveFace {
+  return face === face.toLowerCase();
+}
+
+function getMoveLayers(face: MoveFace): number[] {
+  const outerLayer = layerForFace(getBaseMoveFace(face));
+  return isWideMoveFace(face) ? [outerLayer, 0] : [outerLayer];
 }
 
 function axisForFace(face: FaceName): 0 | 1 | 2 {

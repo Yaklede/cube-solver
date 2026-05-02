@@ -1,4 +1,4 @@
-import type { FaceName, Move } from "@/core/models";
+import type { FaceName, Move, MoveFace, WideMoveFace } from "@/core/models";
 
 export interface StickerPlacement {
   index: number;
@@ -49,19 +49,34 @@ export const VISUAL_FACE_LABELS: Record<FaceName, string> = {
 
 export const STICKER_PLACEMENTS: StickerPlacement[] = buildStickerPlacements();
 
-export function getMoveAxis(face: FaceName): 0 | 1 | 2 {
-  if (face === "R" || face === "L") return 0;
-  if (face === "U" || face === "D") return 1;
+export function getBaseMoveFace(face: MoveFace): FaceName {
+  return face.toUpperCase() as FaceName;
+}
+
+export function isWideMoveFace(face: MoveFace): face is WideMoveFace {
+  return face === face.toLowerCase();
+}
+
+export function getMoveAxis(face: MoveFace): 0 | 1 | 2 {
+  const baseFace = getBaseMoveFace(face);
+  if (baseFace === "R" || baseFace === "L") return 0;
+  if (baseFace === "U" || baseFace === "D") return 1;
   return 2;
 }
 
-export function getMoveLayer(face: FaceName): number {
-  return face === "R" || face === "U" || face === "F" ? 1 : -1;
+export function getMoveLayer(face: MoveFace): number {
+  const baseFace = getBaseMoveFace(face);
+  return baseFace === "R" || baseFace === "U" || baseFace === "F" ? 1 : -1;
+}
+
+export function getMoveLayers(face: MoveFace): number[] {
+  const outerLayer = getMoveLayer(face);
+  return isWideMoveFace(face) ? [outerLayer, 0] : [outerLayer];
 }
 
 export function getMoveAngle(move: Move, direction: 1 | -1 = 1): number {
   const amount = move.amount === 2 ? 2 : move.amount === -1 ? -1 : 1;
-  return FACE_TURN_SIGN[move.face] * amount * direction * (Math.PI / 2);
+  return FACE_TURN_SIGN[getBaseMoveFace(move.face)] * amount * direction * (Math.PI / 2);
 }
 
 export function getStickerRenderPosition(placement: StickerPlacement): [number, number, number] {

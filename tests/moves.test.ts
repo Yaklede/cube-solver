@@ -10,6 +10,18 @@ describe("move parser and simulator", () => {
     expect(() => parseMove("M2")).toThrow();
   });
 
+  it("parses and applies lowercase wide moves", () => {
+    const move = parseMove("d'");
+    expect(move.face).toBe("d");
+    expect(move.amount).toBe(-1);
+    expect(move.koreanInstruction).toContain("두 층");
+
+    const moved = applyAlgorithm(SOLVED_STATE_STRING, "d");
+    expect(moved).not.toBe(SOLVED_STATE_STRING);
+    expect(applyAlgorithm(moved, "d'")).toBe(SOLVED_STATE_STRING);
+    expect(applyAlgorithm(SOLVED_STATE_STRING, "b2 b2")).toBe(SOLVED_STATE_STRING);
+  });
+
   it("applies an algorithm and its inverse", () => {
     const algorithm = "R U R' U'";
     const scrambled = applyAlgorithm(SOLVED_STATE_STRING, algorithm);
