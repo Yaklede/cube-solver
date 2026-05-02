@@ -1,10 +1,11 @@
 import { Check, RotateCcw, ScanLine } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { buildCubeState, createEmptyScanSession, createScanSessionFromStateString, createSolvedFace, FACE_COLORS, FACE_ORDER, updateSticker } from "@/core/cube-state";
+import { buildCubeState, createCubeStateString, createEmptyScanSession, createScanSessionFromStateString, createSolvedFace, FACE_COLORS, FACE_ORDER, updateSticker } from "@/core/cube-state";
 import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sampleNineGrid } from "@/core/color-recognition";
 import type { CubeFace, FaceName, RgbColor, ScanSession, StickerColor } from "@/core/models";
 import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
 import {
+  analyzeGuideFrameQuality,
   analyzeFaceReadiness,
   AUTO_SCAN_COOLDOWN_MS,
   AUTO_SCAN_STABLE_FRAMES,
@@ -102,6 +103,10 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
   const scanGuidance = useMemo(() => getFaceScanGuidance(activeFace), [activeFace]);
   const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
   const loadedFaceCount = useMemo(() => FACE_ORDER.filter((face) => session.faces[face]).length, [session.faces]);
+  const activeFaceIndex = FACE_ORDER.indexOf(activeFace);
+  const hasActiveFaceCaptured = Boolean(session.faces[activeFace]);
+  const scanComplete = loadedFaceCount === FACE_ORDER.length;
+  const displayedStateString = scanComplete ? cubeState.stateString : createCubeStateString(session.faces);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
   const guideStatus = activeCaptureHold?.status === "locked" ? "ready" : activeCaptureHold ? "aligning" : autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
   const guideLabel = activeCaptureHold ? getCaptureHoldLabel(activeCaptureHold) : autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
@@ -176,9 +181,10 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
     const intervalId = window.setInterval(() => {
       try {
         const imageData = captureGuideImageData(cameraVideo);
+        const frameQuality = analyzeGuideFrameQuality(imageData);
         const samples = sampleNineGrid(imageData);
         const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
-        const readiness = analyzeFaceReadiness(nextFace);
+        const readiness = analyzeFaceReadiness(nextFace, frameQuality);
         setAutoReadiness(readiness);
 
         if (!readiness.ready) {
@@ -269,9 +275,15 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
 
     try {
       const imageData = captureGuideImageData(cameraVideo);
+      const frameQuality = analyzeGuideFrameQuality(imageData);
       const samples = sampleNineGrid(imageData);
       const beforeFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
-      const readiness = analyzeFaceReadiness(beforeFace);
+      const readiness = analyzeFaceReadiness(beforeFace, frameQuality);
+      if (!readiness.cubePresent) {
+        setAutoReadiness(readiness);
+        setScanMessage(readiness.reason);
+        return;
+      }
       releaseCaptureHold(activeFace);
       autoScanStateRef.current = createAutoScanState();
       applyRecognitionFromSamples(samples, beforeFace, readiness, "인식했습니다", "manual");
@@ -332,10 +344,10 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
           <div className="camera-action-buttons">
             <button className="button primary" onClick={recognizeCurrentFace}>
               <ScanLine size={16} />
-              {activeCaptureHold ? "다시 인식" : "인식"}
+              {activeCaptureHold ? "다시 촬영" : "현재 면 촬영"}
             </button>
-            <button className="button secondary" onClick={() => saveFace(currentFace)}>
-              현재 면 저장
+            <button className="button secondary" onClick={() => saveFace(currentFace)} disabled={!hasActiveFaceCaptured}>
+              저장 후 다음
             </button>
             <label className="auto-scan-toggle compact">
               <input type="checkbox" checked={autoScanEnabled} onChange={(event) => setAutoScanEnabled(event.target.checked)} />
@@ -363,6 +375,37 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
             <span>{loadedFaceCount} / {FACE_ORDER.length}면이 적재되어 있습니다. 잘못 인식된 면이나 칸만 선택해서 수정한 뒤 다시 풀이 안내로 보내세요.</span>
           </div>
         ) : null}
+
+        <div className="simple-scan-card" aria-label="간단 촬영 흐름">
+          <div className="simple-scan-header">
+            <span>
+              {activeFaceIndex + 1} / {FACE_ORDER.length}
+            </span>
+            <strong>
+              {activeFace} 면 · {scanGuidance.expectedCenterLabel} 센터
+            </strong>
+          </div>
+          <p>{scanGuidance.currentInstruction}</p>
+          <div className="scan-progress" aria-label="6면 촬영 진행률">
+            {FACE_ORDER.map((face) => (
+              <button key={face} className={face === activeFace ? "scan-progress-step active" : session.faces[face] ? "scan-progress-step done" : "scan-progress-step"} onClick={() => setActiveFace(face)}>
+                {face}
+              </button>
+            ))}
+          </div>
+          <div className="simple-scan-actions">
+            <button className="button primary" onClick={recognizeCurrentFace}>
+              <ScanLine size={16} />
+              {activeCaptureHold ? "다시 촬영" : "현재 면 촬영"}
+            </button>
+            <button className="button secondary" onClick={() => saveFace(currentFace)} disabled={!hasActiveFaceCaptured}>
+              저장 후 다음 면
+            </button>
+          </div>
+          <p className={hasActiveFaceCaptured ? "simple-scan-status ready" : "simple-scan-status"}>
+            {hasActiveFaceCaptured ? "현재 면이 적재되었습니다. 색이 맞으면 저장 후 다음 면으로 이동하세요." : "큐브 격자선이 보일 때만 촬영됩니다. 빈 흰 배경은 자동으로 무시됩니다."}
+          </p>
+        </div>
 
         <div className="face-tabs" role="tablist" aria-label="스캔할 면 선택">
           {FACE_ORDER.map((face) => (
@@ -405,6 +448,9 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
               <p>{scanGuidance.nextInstruction}</p>
             </div>
 
+            <details className="advanced-scan-tools">
+              <summary>수동 수정 / 보정</summary>
+              <div className="advanced-scan-tools-body">
             <div>
               <h3>색상 팔레트</h3>
               <div className="palette">
@@ -455,16 +501,25 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
               샘플 면 저장
             </button>
             <ReviewNotice indexes={lowConfidenceIndexes} />
+              </div>
+            </details>
           </div>
         </div>
 
-        <ScanDiagnosticPanel diagnostics={scanDiagnostics} activeFace={activeFace} />
+        <details className="advanced-scan-tools diagnostics-toggle">
+          <summary>진단 JSON / 세부 신뢰도</summary>
+          <ScanDiagnosticPanel diagnostics={scanDiagnostics} activeFace={activeFace} />
+        </details>
 
         <div className="state-output">
           <h3>상태 문자열</h3>
-          <code>{cubeState.stateString}</code>
-          <ValidationSummary valid={cubeState.validation.valid} errors={cubeState.validation.errors} warnings={cubeState.validation.warnings} />
-          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString, session)} disabled={!cubeState.validation.valid}>
+          <code>{displayedStateString}</code>
+          <ValidationSummary
+            valid={scanComplete && cubeState.validation.valid}
+            errors={scanComplete ? cubeState.validation.errors : [`6면 중 ${loadedFaceCount}면만 촬영되었습니다.`]}
+            warnings={scanComplete ? cubeState.validation.warnings : ["모든 면을 저장해야 풀이 안내로 보낼 수 있습니다."]}
+          />
+          <button className="button primary state-action" onClick={() => onOpenSolver?.(cubeState.stateString, session)} disabled={!scanComplete || !cubeState.validation.valid}>
             풀이 안내로 보내기
           </button>
         </div>
@@ -582,6 +637,13 @@ function AutoScanReadiness({ readiness, enabled, hold }: { readiness: FaceReadin
   }
   if (!enabled) return <p className="auto-scan-status">자동 인식이 꺼져 있습니다.</p>;
   if (!readiness) return <p className="auto-scan-status">카메라 프레임을 확인하고 있습니다.</p>;
+  if (!readiness.cubePresent) {
+    return (
+      <p className="auto-scan-status">
+        {readiness.reason} 격자 대비 {Math.round(readiness.separatorContrast)}, 어두운 선 {Math.round(readiness.darkSeparatorRatio * 100)}%
+      </p>
+    );
+  }
 
   return (
     <p className={readiness.ready ? "auto-scan-status ready" : "auto-scan-status"}>
