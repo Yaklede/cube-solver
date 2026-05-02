@@ -5,6 +5,7 @@ import { calibrateColorProfile, createDefaultColorProfile, DEFAULT_COLOR_RGB, sa
 import type { CubeFace, FaceName, RgbColor, ScanSession, StickerColor } from "@/core/models";
 import { COLOR_LABEL, getFaceScanGuidance } from "@/core/scan-guidance";
 import {
+  analyzeGuideFrameQuality,
   analyzeFaceReadiness,
   AUTO_SCAN_COOLDOWN_MS,
   AUTO_SCAN_STABLE_FRAMES,
@@ -176,9 +177,10 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
     const intervalId = window.setInterval(() => {
       try {
         const imageData = captureGuideImageData(cameraVideo);
+        const frameQuality = analyzeGuideFrameQuality(imageData);
         const samples = sampleNineGrid(imageData);
         const nextFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
-        const readiness = analyzeFaceReadiness(nextFace);
+        const readiness = analyzeFaceReadiness(nextFace, frameQuality);
         setAutoReadiness(readiness);
 
         if (!readiness.ready) {
@@ -269,9 +271,15 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
 
     try {
       const imageData = captureGuideImageData(cameraVideo);
+      const frameQuality = analyzeGuideFrameQuality(imageData);
       const samples = sampleNineGrid(imageData);
       const beforeFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
-      const readiness = analyzeFaceReadiness(beforeFace);
+      const readiness = analyzeFaceReadiness(beforeFace, frameQuality);
+      if (!readiness.cubePresent) {
+        setAutoReadiness(readiness);
+        setScanMessage(readiness.reason);
+        return;
+      }
       releaseCaptureHold(activeFace);
       autoScanStateRef.current = createAutoScanState();
       applyRecognitionFromSamples(samples, beforeFace, readiness, "인식했습니다", "manual");
@@ -582,6 +590,13 @@ function AutoScanReadiness({ readiness, enabled, hold }: { readiness: FaceReadin
   }
   if (!enabled) return <p className="auto-scan-status">자동 인식이 꺼져 있습니다.</p>;
   if (!readiness) return <p className="auto-scan-status">카메라 프레임을 확인하고 있습니다.</p>;
+  if (!readiness.cubePresent) {
+    return (
+      <p className="auto-scan-status">
+        {readiness.reason} 격자 대비 {Math.round(readiness.separatorContrast)}, 어두운 선 {Math.round(readiness.darkSeparatorRatio * 100)}%
+      </p>
+    );
+  }
 
   return (
     <p className={readiness.ready ? "auto-scan-status ready" : "auto-scan-status"}>

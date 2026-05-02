@@ -12,6 +12,8 @@ export const AUTO_SCAN_LOCK_MAX_LOW_CONFIDENCE_COUNT = 1;
 export const AUTO_SCAN_STABLE_FRAMES = 3;
 export const AUTO_SCAN_COOLDOWN_MS = 1800;
 export const AUTO_SCAN_FALLBACK_FAILURE_FRAMES = 5;
+export const CUBE_PRESENCE_MIN_SEPARATOR_CONTRAST = 12;
+export const CUBE_PRESENCE_MIN_DARK_SEPARATOR_RATIO = 0.025;
 
 export interface GuideCrop {
   x: number;
@@ -24,9 +26,19 @@ export interface FaceReadiness {
   averageConfidence: number;
   minConfidence: number;
   lowConfidenceCount: number;
+  cubePresent: boolean;
+  separatorContrast: number;
+  darkSeparatorRatio: number;
   centerMatchesExpected: boolean;
   expectedCenterColor: CubeSticker["color"];
   detectedCenterColor: CubeSticker["color"];
+  reason: string;
+}
+
+export interface GuideFrameQuality {
+  cubePresent: boolean;
+  separatorContrast: number;
+  darkSeparatorRatio: number;
   reason: string;
 }
 
@@ -87,6 +99,43 @@ export function captureGuideImageData(video: HTMLVideoElement, outputSize = SCAN
   return context.getImageData(0, 0, outputSize, outputSize);
 }
 
+export function analyzeGuideFrameQuality(imageData: ImageData): GuideFrameQuality {
+  const { data, width, height } = imageData;
+  const separatorHalfWidth = Math.max(2, Math.round(Math.min(width, height) * 0.018));
+  const separatorCenters = [1 / 3, 2 / 3];
+  const separatorLuminance: number[] = [];
+  const stickerLuminance: number[] = [];
+
+  for (let y = 0; y < height; y += 1) {
+    for (let x = 0; x < width; x += 1) {
+      const offset = (y * width + x) * 4;
+      const luminance = getLuminance(data[offset], data[offset + 1], data[offset + 2]);
+      const inVerticalSeparator = separatorCenters.some((center) => Math.abs(x - width * center) <= separatorHalfWidth);
+      const inHorizontalSeparator = separatorCenters.some((center) => Math.abs(y - height * center) <= separatorHalfWidth);
+      if (inVerticalSeparator || inHorizontalSeparator) {
+        separatorLuminance.push(luminance);
+      } else {
+        stickerLuminance.push(luminance);
+      }
+    }
+  }
+
+  const separatorAverage = average(separatorLuminance);
+  const stickerAverage = average(stickerLuminance);
+  const separatorContrast = Math.max(0, stickerAverage - separatorAverage);
+  const darkSeparatorRatio = separatorLuminance.filter((luminance) => luminance < 82).length / Math.max(1, separatorLuminance.length);
+  const cubePresent =
+    separatorContrast >= CUBE_PRESENCE_MIN_SEPARATOR_CONTRAST ||
+    darkSeparatorRatio >= CUBE_PRESENCE_MIN_DARK_SEPARATOR_RATIO;
+
+  return {
+    cubePresent,
+    separatorContrast,
+    darkSeparatorRatio,
+    reason: cubePresent ? "큐브 격자 신호가 확인되었습니다." : "큐브 격자선이 보이지 않습니다. 큐브를 가이드 안에 더 크게 맞추세요.",
+  };
+}
+
 export function recognizeFaceFromSamples(face: FaceName, samples: RgbColor[], profile: ColorProfile): CubeFace {
   if (samples.length !== 9) {
     throw new Error(`큐브 한 면은 9개 색상 샘플이 필요합니다. 현재 ${samples.length}개입니다.`);
@@ -145,7 +194,7 @@ export function getLowConfidenceStickerIndexes(face: CubeFace, threshold = LOW_C
   return face.stickers.filter((sticker) => !sticker.manuallyEdited && sticker.confidence < threshold).map((sticker) => sticker.index);
 }
 
-export function analyzeFaceReadiness(face: CubeFace): FaceReadiness {
+export function analyzeFaceReadiness(face: CubeFace, frameQuality?: GuideFrameQuality): FaceReadiness {
   const confidences = face.stickers.map((sticker) => sticker.confidence);
   const averageConfidence = confidences.reduce((total, confidence) => total + confidence, 0) / confidences.length;
   const minConfidence = Math.min(...confidences);
@@ -153,24 +202,34 @@ export function analyzeFaceReadiness(face: CubeFace): FaceReadiness {
   const expectedCenterColor = FACE_COLORS[face.name];
   const detectedCenterColor = face.stickers[4]?.color ?? face.centerColor;
   const centerMatchesExpected = detectedCenterColor === expectedCenterColor;
+  const cubePresent = frameQuality?.cubePresent ?? true;
+  const separatorContrast = frameQuality?.separatorContrast ?? 0;
+  const darkSeparatorRatio = frameQuality?.darkSeparatorRatio ?? 0;
   const ready =
-    centerMatchesExpected && averageConfidence >= AUTO_SCAN_MIN_AVERAGE_CONFIDENCE && lowConfidenceCount <= AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT;
+    cubePresent &&
+    centerMatchesExpected &&
+    averageConfidence >= AUTO_SCAN_MIN_AVERAGE_CONFIDENCE &&
+    lowConfidenceCount <= AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT;
 
   return {
     ready,
     averageConfidence,
     minConfidence,
     lowConfidenceCount,
+    cubePresent,
+    separatorContrast,
+    darkSeparatorRatio,
     centerMatchesExpected,
     expectedCenterColor,
     detectedCenterColor,
-    reason: getReadinessReason(centerMatchesExpected, averageConfidence, lowConfidenceCount),
+    reason: getReadinessReason(cubePresent, frameQuality?.reason, centerMatchesExpected, averageConfidence, lowConfidenceCount),
   };
 }
 
 export function shouldUseAutoScanFallback(readiness: FaceReadiness, failedReadinessCount: number, now: number, lastFallbackAt: number): boolean {
   return (
     !readiness.ready &&
+    readiness.cubePresent &&
     readiness.centerMatchesExpected &&
     failedReadinessCount >= AUTO_SCAN_FALLBACK_FAILURE_FRAMES &&
     now - lastFallbackAt >= AUTO_SCAN_COOLDOWN_MS
@@ -181,17 +240,34 @@ export function shouldLockAutoScanRecognition(readiness: FaceReadiness, recogniz
   const recognizedReadiness = analyzeFaceReadiness(recognizedFace);
   return (
     readiness.ready &&
+    readiness.cubePresent &&
     recognizedReadiness.centerMatchesExpected &&
     recognizedReadiness.averageConfidence >= AUTO_SCAN_LOCK_MIN_AVERAGE_CONFIDENCE &&
     recognizedReadiness.lowConfidenceCount <= AUTO_SCAN_LOCK_MAX_LOW_CONFIDENCE_COUNT
   );
 }
 
-function getReadinessReason(centerMatchesExpected: boolean, averageConfidence: number, lowConfidenceCount: number): string {
+function getReadinessReason(
+  cubePresent: boolean,
+  frameQualityReason: string | undefined,
+  centerMatchesExpected: boolean,
+  averageConfidence: number,
+  lowConfidenceCount: number,
+): string {
+  if (!cubePresent) return frameQualityReason ?? "큐브가 가이드 안에 충분히 보이지 않습니다.";
   if (!centerMatchesExpected) return "현재 스캔할 면의 센터 색상과 다릅니다.";
   if (averageConfidence < AUTO_SCAN_MIN_AVERAGE_CONFIDENCE) return "색상 신뢰도가 낮아 큐브를 조금 더 밝고 정면으로 맞추세요.";
   if (lowConfidenceCount > AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT) return "낮은 신뢰도 칸이 많아 재정렬이 필요합니다.";
   return "면이 안정적으로 맞춰졌습니다.";
+}
+
+function getLuminance(red: number, green: number, blue: number): number {
+  return red * 0.2126 + green * 0.7152 + blue * 0.0722;
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
 }
 
 function withExpectedCenterSticker(face: CubeFace, expectedCenterColor: CubeSticker["color"]): CubeFace {

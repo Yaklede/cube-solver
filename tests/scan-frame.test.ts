@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { classifyStickerColor, createDefaultColorProfile, DEFAULT_COLOR_RGB } from "@/core/color-recognition";
 import {
+  analyzeGuideFrameQuality,
   analyzeFaceReadiness,
   calculateGuideCrop,
   getLowConfidenceStickerIndexes,
@@ -44,6 +45,34 @@ describe("scan frame helpers", () => {
     const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
     expect(analyzeFaceReadiness(wrongCenterFace).ready).toBe(false);
     expect(analyzeFaceReadiness(wrongCenterFace).centerMatchesExpected).toBe(false);
+  });
+
+  it("rejects a blank white frame before it can be used as a white cube face", () => {
+    const profile = createDefaultColorProfile();
+    const blankFrame = createFrame(90, (x, y) => ({ r: 245, g: 245, b: 242 }));
+    const frameQuality = analyzeGuideFrameQuality(blankFrame);
+    const whiteFace = recognizeFaceFromSamples("U", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.white), profile);
+    const readiness = analyzeFaceReadiness(whiteFace, frameQuality);
+
+    expect(frameQuality.cubePresent).toBe(false);
+    expect(readiness.centerMatchesExpected).toBe(true);
+    expect(readiness.ready).toBe(false);
+    expect(shouldUseAutoScanFallback(readiness, 5, 3000, 0)).toBe(false);
+    expect(shouldLockAutoScanRecognition(readiness, whiteFace)).toBe(false);
+  });
+
+  it("accepts a white face when cube grid separators are visible", () => {
+    const profile = createDefaultColorProfile();
+    const cubeFrame = createFrame(90, (x, y) => {
+      const nearSeparator = [30, 60].some((line) => Math.abs(x - line) <= 2 || Math.abs(y - line) <= 2);
+      return nearSeparator ? { r: 24, g: 24, b: 24 } : { r: 242, g: 241, b: 238 };
+    });
+    const frameQuality = analyzeGuideFrameQuality(cubeFrame);
+    const whiteFace = recognizeFaceFromSamples("U", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.white), profile);
+    const readiness = analyzeFaceReadiness(whiteFace, frameQuality);
+
+    expect(frameQuality.cubePresent).toBe(true);
+    expect(readiness.ready).toBe(true);
   });
 
   it("uses manual recognition fallback after repeated alignment failures only for the expected center", () => {
@@ -127,3 +156,18 @@ describe("scan frame helpers", () => {
     expect(classifyStickerColor(logoLikeCenterSample, result.profile).color).toBe("blue");
   });
 });
+
+function createFrame(size: number, colorAt: (x: number, y: number) => { r: number; g: number; b: number }): ImageData {
+  const data = new Uint8ClampedArray(size * size * 4);
+  for (let y = 0; y < size; y += 1) {
+    for (let x = 0; x < size; x += 1) {
+      const offset = (y * size + x) * 4;
+      const color = colorAt(x, y);
+      data[offset] = color.r;
+      data[offset + 1] = color.g;
+      data[offset + 2] = color.b;
+      data[offset + 3] = 255;
+    }
+  }
+  return { data, width: size, height: size } as ImageData;
+}
