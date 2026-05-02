@@ -408,6 +408,23 @@
 남은 문제: 실제 iOS/Android 브라우저에서 카메라 권한과 safe-area inset까지 추가 QA가 필요하다.
 다음 단계에서 할 일: 네이티브 카메라 실기기 확인, mock serial transport 구현, PR 외부검증.
 
+## 28단계
+
+[단계 결과 보고서]
+
+단계 번호: 28
+단계 이름: 자동 인식 품질 기반 잠금
+이번 단계 목표: 자동 인식 후 카메라 앞에 그대로 두면 같은 면의 스캔 결과가 다시 덮어써지는 문제를 막는다.
+완료한 작업: 자동/수동/fallback 인식 결과에 per-face hold 상태를 추가했다. 색상 평균 신뢰도와 낮은 신뢰도 칸 수가 잠금 기준을 만족하면 잠금 상태로 두고, 기준 미달 결과는 검토 상태로 멈춰 사용자가 저장 또는 다시 인식하도록 했다. 초기화 시 hold 상태와 자동 스캔 내부 상태도 함께 리셋한다.
+생성/수정한 파일: `src/core/scan-frame.ts`, `src/features/scanner/ScannerWorkspace.tsx`, `tests/scan-frame.test.ts`, `TASK.md`
+핵심 구현 내용: `shouldLockAutoScanRecognition`은 기존 자동 인식 준비 기준보다 높은 잠금 기준을 적용한다. `ScannerWorkspace`는 active face에 locked/review hold가 있으면 자동 루프를 일시 중지하고, 빠른 인식 버튼은 `다시 인식`으로 바뀐다.
+실행 방법: `npm run dev` 후 카메라/스캔 화면에서 자동 인식을 켜고 한 면을 가이드에 맞춘다.
+테스트 방법: `npm run test -- tests/scan-frame.test.ts`, `npm run build`
+테스트 결과: 대상 단위 테스트 1개 파일 8개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: UI에서 `인식 완료 - 평균 n%` 또는 `검토 필요 - 평균 n%` 상태가 표시되며, 해당 면은 저장/다시 인식 전까지 자동 덮어쓰기가 중단된다.
+남은 문제: 실제 조명/카메라 환경에서 잠금 기준 78%/낮은 신뢰도 1칸 이하가 너무 엄격하거나 느슨한지 추가 실측이 필요하다.
+다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
+
 ## 24단계
 
 [단계 결과 보고서]
