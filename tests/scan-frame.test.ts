@@ -6,6 +6,7 @@ import {
   getLowConfidenceStickerIndexes,
   recognizeFaceFromSamples,
   recognizeFaceWithExpectedCenterCalibration,
+  shouldLockAutoScanRecognition,
   shouldUseAutoScanFallback,
 } from "@/core/scan-frame";
 
@@ -60,6 +61,30 @@ describe("scan frame helpers", () => {
 
     const wrongCenterFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.red), profile);
     expect(shouldUseAutoScanFallback(analyzeFaceReadiness(wrongCenterFace), 5, 3000, 0)).toBe(false);
+  });
+
+  it("locks auto recognition only when the color confidence is strong enough", () => {
+    const profile = createDefaultColorProfile();
+    const lockedFace = recognizeFaceFromSamples("F", Array.from({ length: 9 }, () => DEFAULT_COLOR_RGB.green), profile);
+    const lockedReadiness = analyzeFaceReadiness(lockedFace);
+    expect(lockedReadiness.ready).toBe(true);
+    expect(shouldLockAutoScanRecognition(lockedReadiness, lockedFace)).toBe(true);
+
+    const marginalFace = {
+      ...lockedFace,
+      stickers: lockedFace.stickers.map((sticker) => ({ ...sticker, confidence: 0.7 })),
+    };
+    const marginalReadiness = analyzeFaceReadiness(marginalFace);
+    expect(marginalReadiness.ready).toBe(true);
+    expect(shouldLockAutoScanRecognition(marginalReadiness, marginalFace)).toBe(false);
+
+    const lowConfidenceFace = {
+      ...lockedFace,
+      stickers: lockedFace.stickers.map((sticker, index) => (index < 2 ? { ...sticker, confidence: 0.4 } : sticker)),
+    };
+    const lowConfidenceReadiness = analyzeFaceReadiness(lowConfidenceFace);
+    expect(lowConfidenceReadiness.ready).toBe(true);
+    expect(shouldLockAutoScanRecognition(lowConfidenceReadiness, lowConfidenceFace)).toBe(false);
   });
 
   it("uses the expected center sticker to adapt recognition for the active face", () => {

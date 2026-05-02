@@ -7,6 +7,8 @@ export const SCAN_CAPTURE_SIZE = 300;
 export const LOW_CONFIDENCE_THRESHOLD = 0.55;
 export const AUTO_SCAN_MIN_AVERAGE_CONFIDENCE = 0.68;
 export const AUTO_SCAN_MAX_LOW_CONFIDENCE_COUNT = 2;
+export const AUTO_SCAN_LOCK_MIN_AVERAGE_CONFIDENCE = 0.78;
+export const AUTO_SCAN_LOCK_MAX_LOW_CONFIDENCE_COUNT = 1;
 export const AUTO_SCAN_STABLE_FRAMES = 3;
 export const AUTO_SCAN_COOLDOWN_MS = 1800;
 export const AUTO_SCAN_FALLBACK_FAILURE_FRAMES = 5;
@@ -172,6 +174,16 @@ export function shouldUseAutoScanFallback(readiness: FaceReadiness, failedReadin
     readiness.centerMatchesExpected &&
     failedReadinessCount >= AUTO_SCAN_FALLBACK_FAILURE_FRAMES &&
     now - lastFallbackAt >= AUTO_SCAN_COOLDOWN_MS
+  );
+}
+
+export function shouldLockAutoScanRecognition(readiness: FaceReadiness, recognizedFace: CubeFace): boolean {
+  const recognizedReadiness = analyzeFaceReadiness(recognizedFace);
+  return (
+    readiness.ready &&
+    recognizedReadiness.centerMatchesExpected &&
+    recognizedReadiness.averageConfidence >= AUTO_SCAN_LOCK_MIN_AVERAGE_CONFIDENCE &&
+    recognizedReadiness.lowConfidenceCount <= AUTO_SCAN_LOCK_MAX_LOW_CONFIDENCE_COUNT
   );
 }
 
