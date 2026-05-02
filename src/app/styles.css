@@ -568,6 +568,86 @@ p {
   line-height: 1.45;
 }
 
+.simple-scan-card {
+  display: grid;
+  gap: 12px;
+  margin: 14px 0 12px;
+  border: 1px solid rgba(15, 118, 110, 0.28);
+  border-radius: 8px;
+  background: #f0fdfa;
+  padding: 14px;
+}
+
+.simple-scan-header,
+.simple-scan-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.simple-scan-header span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid rgba(15, 118, 110, 0.32);
+  border-radius: 999px;
+  background: #fff;
+  padding: 3px 10px;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.simple-scan-header strong {
+  color: #0f3f3a;
+}
+
+.simple-scan-card p {
+  margin: 0;
+}
+
+.simple-scan-actions {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.scan-progress {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(34px, 1fr));
+  gap: 6px;
+}
+
+.scan-progress-step {
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: #334155;
+  padding: 8px 6px;
+  font-weight: 800;
+}
+
+.scan-progress-step.active {
+  border-color: var(--primary);
+  color: var(--primary);
+}
+
+.scan-progress-step.done {
+  border-color: rgba(15, 118, 110, 0.38);
+  background: #dff7f0;
+  color: #0f5f57;
+}
+
+.simple-scan-status {
+  color: var(--warning);
+  font-size: 13px;
+}
+
+.simple-scan-status.ready {
+  color: var(--primary);
+}
+
 .scan-guidance-row {
   display: flex;
   align-items: center;
@@ -633,6 +713,38 @@ p {
 
 .scan-diagnostics {
   margin-top: 18px;
+}
+
+.advanced-scan-tools {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0;
+}
+
+.advanced-scan-tools summary {
+  cursor: pointer;
+  padding: 12px;
+  color: #111827;
+  font-weight: 750;
+}
+
+.advanced-scan-tools-body {
+  display: grid;
+  gap: 14px;
+  border-top: 1px solid var(--border);
+  padding: 12px;
+}
+
+.diagnostics-toggle {
+  margin-top: 18px;
+}
+
+.diagnostics-toggle .scan-diagnostics {
+  margin: 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  border-radius: 0 0 8px 8px;
 }
 
 .scan-diagnostics-header {
@@ -1499,6 +1611,20 @@ button.method-row:disabled {
 
   .camera-action-buttons {
     grid-template-columns: 1fr;
+  }
+
+  .simple-scan-header,
+  .simple-scan-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .simple-scan-actions .button {
+    width: 100%;
+  }
+
+  .scan-progress {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .auto-scan-toggle.compact {
