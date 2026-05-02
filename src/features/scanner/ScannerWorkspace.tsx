@@ -14,6 +14,7 @@ import {
   LOW_CONFIDENCE_THRESHOLD,
   recognizeFaceFromSamples,
   recognizeFaceWithExpectedCenterCalibration,
+  shouldLockAutoScanRecognition,
   shouldUseAutoScanFallback,
   type FaceReadiness,
 } from "@/core/scan-frame";
@@ -59,6 +60,16 @@ interface AutoScanState {
   fallbackAppliedAt: number;
 }
 
+type AutoCaptureSource = "auto" | "manual" | "fallback" | "manual-edit" | "saved";
+
+interface AutoCaptureHold {
+  status: "locked" | "review";
+  source: AutoCaptureSource;
+  signature: string;
+  averageConfidence: number;
+  capturedAt: number;
+}
+
 function createAutoScanState(): AutoScanState {
   return {
     signature: "",
@@ -82,26 +93,50 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
   const [calibrationSamples, setCalibrationSamples] = useState<Partial<Record<StickerColor, RgbColor>>>({});
   const [colorProfile, setColorProfile] = useState(() => createDefaultColorProfile());
   const [scanDiagnostics, setScanDiagnostics] = useState<Partial<Record<FaceName, ScanDiagnostic>>>({});
+  const [captureHolds, setCaptureHolds] = useState<Partial<Record<FaceName, AutoCaptureHold>>>({});
   const autoScanStateRef = useRef<AutoScanState>(createAutoScanState());
   const cubeState = useMemo(() => buildCubeState(session.faces), [session.faces]);
   const activeFace = session.activeFace;
+  const activeCaptureHold = captureHolds[activeFace];
   const currentFace = session.faces[activeFace] ?? createSolvedFace(activeFace);
   const scanGuidance = useMemo(() => getFaceScanGuidance(activeFace), [activeFace]);
   const lowConfidenceIndexes = useMemo(() => getLowConfidenceStickerIndexes(currentFace), [currentFace]);
   const loadedFaceCount = useMemo(() => FACE_ORDER.filter((face) => session.faces[face]).length, [session.faces]);
   const rememberCamera = useCallback((video: HTMLVideoElement) => setCameraVideo(video), []);
-  const guideStatus = autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
-  const guideLabel = autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
+  const guideStatus = activeCaptureHold?.status === "locked" ? "ready" : activeCaptureHold ? "aligning" : autoReadiness?.ready ? "ready" : autoReadiness ? "aligning" : "idle";
+  const guideLabel = activeCaptureHold ? getCaptureHoldLabel(activeCaptureHold) : autoReadiness?.ready ? "자동 인식 준비" : autoReadiness?.reason;
 
   useEffect(() => {
     onSessionChange?.(session);
   }, [onSessionChange, session]);
 
+  const setCaptureHoldForFace = useCallback((face: FaceName, capturedFace: CubeFace, status: AutoCaptureHold["status"], source: AutoCaptureSource) => {
+    setCaptureHolds((previous) => ({
+      ...previous,
+      [face]: {
+        status,
+        source,
+        signature: getFaceSignature(capturedFace),
+        averageConfidence: getAverageFaceConfidence(capturedFace),
+        capturedAt: Date.now(),
+      },
+    }));
+  }, []);
+
+  const releaseCaptureHold = useCallback((face: FaceName) => {
+    setCaptureHolds((previous) => {
+      const { [face]: _released, ...rest } = previous;
+      return rest;
+    });
+  }, []);
+
   const applyRecognitionFromSamples = useCallback(
-    (samples: RgbColor[], beforeFace: CubeFace, readiness: FaceReadiness, action: string) => {
+    (samples: RgbColor[], beforeFace: CubeFace, readiness: FaceReadiness, action: string, source: "auto" | "manual" | "fallback") => {
       const result = recognizeFaceWithExpectedCenterCalibration(activeFace, samples, colorProfile);
       const nextFace = result.face;
       const diagnostic = createScanDiagnostic(activeFace, samples, beforeFace, readiness, nextFace, result.averageConfidence);
+      const lockable = shouldLockAutoScanRecognition(readiness, nextFace);
+      const shouldReviewHold = !lockable;
       if (result.calibrationApplied) {
         setColorProfile(result.profile);
         setCalibrationSamples((previous) => ({
@@ -120,15 +155,20 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
         ...previous,
         [activeFace]: diagnostic,
       }));
-      setScanMessage(getCenterCalibrationMessage(activeFace, result, action));
-      return result;
+      if (lockable) {
+        setCaptureHoldForFace(activeFace, nextFace, "locked", source);
+      } else if (shouldReviewHold) {
+        setCaptureHoldForFace(activeFace, nextFace, "review", source);
+      }
+      setScanMessage(`${getCenterCalibrationMessage(activeFace, result, action)} ${getCaptureResultMessage(lockable, shouldReviewHold)}`);
+      return { ...result, lockable };
     },
-    [activeFace, colorProfile],
+    [activeFace, colorProfile, setCaptureHoldForFace],
   );
 
   useEffect(() => {
     autoScanStateRef.current = createAutoScanState();
-    if (!autoScanEnabled || !cameraVideo) {
+    if (!autoScanEnabled || !cameraVideo || activeCaptureHold) {
       setAutoReadiness(null);
       return;
     }
@@ -148,7 +188,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
           state.failedReadinessCount += 1;
           const now = Date.now();
           if (shouldUseAutoScanFallback(readiness, state.failedReadinessCount, now, state.fallbackAppliedAt)) {
-            const result = applyRecognitionFromSamples(samples, nextFace, readiness, "자동 안정화 fallback으로 인식했습니다");
+            const result = applyRecognitionFromSamples(samples, nextFace, readiness, "자동 안정화 fallback으로 인식했습니다", "fallback");
             state.fallbackAppliedAt = now;
             state.failedReadinessCount = 0;
             state.appliedSignature = getFaceSignature(result.face);
@@ -175,7 +215,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
 
         if (!canApply) return;
 
-        const result = applyRecognitionFromSamples(samples, nextFace, readiness, "자동 인식되었습니다");
+        applyRecognitionFromSamples(samples, nextFace, readiness, "자동 인식되었습니다", "auto");
         state.appliedSignature = signature;
         state.appliedAt = now;
       } catch {
@@ -185,11 +225,12 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
     }, AUTO_SCAN_INTERVAL_MS);
 
     return () => window.clearInterval(intervalId);
-  }, [activeFace, applyRecognitionFromSamples, autoScanEnabled, cameraVideo, colorProfile]);
+  }, [activeCaptureHold, activeFace, applyRecognitionFromSamples, autoScanEnabled, cameraVideo, colorProfile]);
 
   function saveFace(face: CubeFace) {
     const currentIndex = FACE_ORDER.indexOf(activeFace);
     const nextFace = FACE_ORDER[Math.min(currentIndex + 1, FACE_ORDER.length - 1)];
+    setCaptureHoldForFace(activeFace, face, "locked", "saved");
     setSession((previous) => ({
       ...previous,
       activeFace: nextFace,
@@ -210,6 +251,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
 
   function editSticker(index: number) {
     const nextFace = updateSticker(currentFace, index, selectedColor);
+    setCaptureHoldForFace(activeFace, nextFace, "locked", "manual-edit");
     setSession((previous) => ({
       ...previous,
       faces: {
@@ -230,7 +272,9 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
       const samples = sampleNineGrid(imageData);
       const beforeFace = recognizeFaceFromSamples(activeFace, samples, colorProfile);
       const readiness = analyzeFaceReadiness(beforeFace);
-      applyRecognitionFromSamples(samples, beforeFace, readiness, "인식했습니다");
+      releaseCaptureHold(activeFace);
+      autoScanStateRef.current = createAutoScanState();
+      applyRecognitionFromSamples(samples, beforeFace, readiness, "인식했습니다", "manual");
     } catch (error) {
       setScanMessage(error instanceof Error ? error.message : "카메라 프레임 인식에 실패했습니다.");
     }
@@ -266,6 +310,14 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
     setScanMessage("기본 색상 프로필로 되돌렸습니다.");
   }
 
+  function resetScanSession() {
+    setSession(createEmptyScanSession());
+    setCaptureHolds({});
+    autoScanStateRef.current = createAutoScanState();
+    setAutoReadiness(null);
+    setScanMessage("스캔을 초기화했습니다. 자동 인식을 다시 시작합니다.");
+  }
+
   return (
     <div className="workspace-grid">
       <div className="scanner-camera-column">
@@ -280,7 +332,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
           <div className="camera-action-buttons">
             <button className="button primary" onClick={recognizeCurrentFace}>
               <ScanLine size={16} />
-              인식
+              {activeCaptureHold ? "다시 인식" : "인식"}
             </button>
             <button className="button secondary" onClick={() => saveFace(currentFace)}>
               현재 면 저장
@@ -299,7 +351,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
             <h2>6면 스캔</h2>
             <p>가이드에 한 면을 맞춘 뒤 9칸 색상을 확인하고 필요하면 수동 수정합니다.</p>
           </div>
-          <button className="button secondary" onClick={() => setSession(createEmptyScanSession())}>
+          <button className="button secondary" onClick={resetScanSession}>
             <RotateCcw size={16} />
             초기화
           </button>
@@ -345,7 +397,7 @@ export function ScannerWorkspace({ initialSession, initialStateString, onOpenSol
                 </strong>
               </div>
               <p>{scanGuidance.currentInstruction}</p>
-              <AutoScanReadiness readiness={autoReadiness} enabled={autoScanEnabled} />
+              <AutoScanReadiness readiness={autoReadiness} enabled={autoScanEnabled} hold={activeCaptureHold} />
               <div className="scan-guidance-row">
                 <span>다음</span>
                 <strong>{scanGuidance.nextFace ?? "검증"}</strong>
@@ -519,7 +571,15 @@ function ReviewNotice({ indexes }: { indexes: number[] }) {
   );
 }
 
-function AutoScanReadiness({ readiness, enabled }: { readiness: FaceReadiness | null; enabled: boolean }) {
+function AutoScanReadiness({ readiness, enabled, hold }: { readiness: FaceReadiness | null; enabled: boolean; hold?: AutoCaptureHold }) {
+  if (hold) {
+    const confidence = Math.round(hold.averageConfidence * 100);
+    if (hold.status === "locked") {
+      return <p className="auto-scan-status ready">인식 완료 상태입니다. 평균 신뢰도 {confidence}%로 자동 덮어쓰기를 막고 있습니다.</p>;
+    }
+
+    return <p className="auto-scan-status">검토 상태입니다. 평균 신뢰도 {confidence}%입니다. 저장하거나 다시 인식하세요.</p>;
+  }
   if (!enabled) return <p className="auto-scan-status">자동 인식이 꺼져 있습니다.</p>;
   if (!readiness) return <p className="auto-scan-status">카메라 프레임을 확인하고 있습니다.</p>;
 
@@ -532,6 +592,30 @@ function AutoScanReadiness({ readiness, enabled }: { readiness: FaceReadiness | 
 
 function getFaceSignature(face: CubeFace): string {
   return face.stickers.map((sticker) => sticker.color).join("-");
+}
+
+function getAverageFaceConfidence(face: CubeFace): number {
+  return face.stickers.reduce((sum, sticker) => sum + sticker.confidence, 0) / face.stickers.length;
+}
+
+function getCaptureHoldLabel(hold: AutoCaptureHold): string {
+  const confidence = Math.round(hold.averageConfidence * 100);
+  if (hold.status === "locked") {
+    return `인식 완료 - 평균 ${confidence}%`;
+  }
+
+  return `검토 필요 - 평균 ${confidence}%`;
+}
+
+function getCaptureResultMessage(lockable: boolean, reviewHold: boolean): string {
+  if (lockable) {
+    return "색상 신뢰도가 충분해 현재 면을 잠갔습니다.";
+  }
+  if (reviewHold) {
+    return "색상 신뢰도가 잠금 기준보다 낮아 검토 상태로 멈췄습니다. 저장하거나 다시 인식하세요.";
+  }
+
+  return "";
 }
 
 function getCenterCalibrationMessage(face: FaceName, result: CenterCalibratedRecognition, action: string): string {
