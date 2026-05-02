@@ -492,3 +492,20 @@
 스크린샷 또는 확인 가능한 결과: 현재 테스트 상태 문자열에서 3D 큐브의 주황/파랑/초록/빨강/흰색 스티커가 보이며, 3D 영역 색상 픽셀 검증에서 saturated 62743개를 확인했다.
 남은 문제: 3D chunk 크기는 여전히 500 kB 이상이라 후속 최적화 대상이다.
 다음 단계에서 할 일: 전체 내부검증, PR 외부검증, merge.
+
+## 30단계
+
+[단계 결과 보고서]
+
+단계 번호: 30
+단계 이름: 솔버 wide move 검증 실패 수정
+이번 단계 목표: 솔버가 반환한 긴 공식이 앱 검증에서 누락 없이 적용되도록 한다.
+완료한 작업: `rubiks-cube-solver`가 반환하는 `b`, `d'` 같은 소문자 wide move를 solver normalization, move parser, 상태 시뮬레이터, 3D 회전 애니메이션에서 모두 처리하도록 수정했다. README 예제 기반 회귀 테스트를 추가해 생성된 공식이 실제 완성 상태로 도달하는지 검증했다.
+생성/수정한 파일: `src/core/models.ts`, `src/core/moves.ts`, `src/core/solver.ts`, `src/core/cube-visualization.ts`, `src/features/solver/components/Cube3DViewer.tsx`, `tests/moves.test.ts`, `tests/solver.test.ts`, `tests/cube-visualization.test.ts`, `TASK.md`, `.serena/memories/session-work.md`, `.serena/memories/debug/solver-verification-wide-move-drop.md`
+핵심 구현 내용: `Move.face`가 단일 면과 wide move를 모두 표현하고, wide move는 바깥층과 중간층을 같은 각도로 회전한다. 3D 뷰어도 같은 레이어 목록을 사용해 풀이 단계와 렌더링이 어긋나지 않게 했다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에서 스캔 상태 문자열을 입력하고 `풀이 생성`을 누른다.
+테스트 방법: `npm run test -- tests/moves.test.ts tests/solver.test.ts tests/cube-visualization.test.ts`, `npm run validate:all`, in-app browser reload smoke
+테스트 결과: 대상 단위 테스트 3개 파일 16개 테스트 통과, 전체 검증 17개 파일 63개 테스트 통과, production build 통과, in-app browser에서 `Cube Trainer`와 `풀이 안내` 렌더링 확인.
+스크린샷 또는 확인 가능한 결과: 브라우저 스모크 결과 `{"title":"Cube Solver Trainer","url":"http://localhost:5173/","hasApp":true}`.
+남은 문제: `M/E/S` slice notation은 학습 공식 데이터 일부에서 별도 지원이 필요하다.
+다음 단계에서 할 일: PR 외부검증, merge.

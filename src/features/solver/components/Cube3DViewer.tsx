@@ -5,7 +5,7 @@ import * as THREE from "three";
 import {
   getMoveAngle,
   getMoveAxis,
-  getMoveLayer,
+  getMoveLayers,
   getStickerRenderPosition,
   STICKER_PLACEMENTS,
   VISUAL_CUBIE_SIZE,
@@ -276,10 +276,10 @@ function animateMove(sceneState: SceneState, previousState: string, targetState:
   const pivot = new THREE.Group();
   sceneState.cubeRoot.add(pivot);
   const axis = getMoveAxis(move.face);
-  const layer = getMoveLayer(move.face);
+  const layers = getMoveLayers(move.face);
   const movingObjects = [...sceneState.cubeRoot.children].filter((child) => {
     const logicalPosition = child.userData.logicalPosition as [number, number, number] | undefined;
-    return logicalPosition?.[axis] === layer;
+    return logicalPosition ? layers.includes(logicalPosition[axis]) : false;
   });
   for (const object of movingObjects) {
     pivot.attach(object);

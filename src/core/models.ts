@@ -1,4 +1,6 @@
 export type FaceName = "U" | "R" | "F" | "D" | "L" | "B";
+export type WideMoveFace = "u" | "r" | "f" | "d" | "l" | "b";
+export type MoveFace = FaceName | WideMoveFace;
 
 export type StickerColor = "white" | "yellow" | "red" | "orange" | "blue" | "green";
 
@@ -68,7 +70,7 @@ export interface ColorProfile {
 }
 
 export interface Move {
-  face: FaceName;
+  face: MoveFace;
   amount: 1 | 2 | -1;
   notation: string;
   koreanInstruction: string;

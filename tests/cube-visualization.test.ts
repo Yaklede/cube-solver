@@ -3,6 +3,7 @@ import {
   getMoveAngle,
   getMoveAxis,
   getMoveLayer,
+  getMoveLayers,
   getStickerRenderPosition,
   STICKER_PLACEMENTS,
   VISUAL_CUBIE_SIZE,
@@ -33,6 +34,13 @@ describe("cube visualization mapping", () => {
     expect(getMoveAxis("F")).toBe(2);
     expect(getMoveLayer("R")).toBe(1);
     expect(getMoveLayer("B")).toBe(-1);
+  });
+
+  it("maps wide turns to outer and middle 3D layers", () => {
+    expect(getMoveAxis("d")).toBe(1);
+    expect(getMoveLayers("D")).toEqual([-1]);
+    expect(getMoveLayers("d")).toEqual([-1, 0]);
+    expect(getMoveLayers("b")).toEqual([-1, 0]);
   });
 
   it("derives clockwise, inverse, and double turn animation angles", () => {

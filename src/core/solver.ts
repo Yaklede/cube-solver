@@ -93,15 +93,14 @@ function toFridrichStateString(stateString: string): string {
 function normalizeSolverOutput(rawSolution: unknown): string {
   const tokens = flattenSolution(rawSolution)
     .join(" ")
-    .replaceAll("prime", "'")
+    .replace(/prime/gi, "'")
     .split(/\s+/)
     .map((token) => token.trim())
     .filter(Boolean)
-    .map((token) => token.replace(/^([FRUDLB])$/, "$1"))
-    .filter((token) => /^[URFDLB][2']?$/.test(token));
+    .filter((token) => /^[URFDLBurfdlb][2']?$/.test(token));
 
   if (tokens.length === 0) {
-    throw new Error("솔버가 표준 단일 면 회전으로 변환 가능한 공식을 반환하지 않았습니다.");
+    throw new Error("솔버가 표준 단일/와이드 면 회전으로 변환 가능한 공식을 반환하지 않았습니다.");
   }
 
   return tokens.join(" ");
