@@ -43,10 +43,19 @@ describe("cube visualization mapping", () => {
     expect(getMoveLayers("b")).toEqual([-1, 0]);
   });
 
+  it("maps slice turns to the middle 3D layer", () => {
+    expect(getMoveAxis("M")).toBe(0);
+    expect(getMoveAxis("E")).toBe(1);
+    expect(getMoveAxis("S")).toBe(2);
+    expect(getMoveLayers("M")).toEqual([0]);
+    expect(getMoveLayer("E")).toBe(0);
+  });
+
   it("derives clockwise, inverse, and double turn animation angles", () => {
     expect(getMoveAngle(parseMove("R"))).toBeCloseTo(-Math.PI / 2);
     expect(getMoveAngle(parseMove("R'"))).toBeCloseTo(Math.PI / 2);
     expect(getMoveAngle(parseMove("U2"))).toBeCloseTo(-Math.PI);
+    expect(getMoveAngle(parseMove("M2"))).toBeCloseTo(Math.PI);
   });
 
   it("defines stable colors for all cube faces", () => {

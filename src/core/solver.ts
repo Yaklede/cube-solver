@@ -97,10 +97,10 @@ function normalizeSolverOutput(rawSolution: unknown): string {
     .split(/\s+/)
     .map((token) => token.trim())
     .filter(Boolean)
-    .filter((token) => /^[URFDLBurfdlb][2']?$/.test(token));
+    .filter((token) => /^[URFDLBurfdlbMES][2']?$/.test(token));
 
   if (tokens.length === 0) {
-    throw new Error("솔버가 표준 단일/와이드 면 회전으로 변환 가능한 공식을 반환하지 않았습니다.");
+    throw new Error("솔버가 표준 단일/와이드/슬라이스 회전으로 변환 가능한 공식을 반환하지 않았습니다.");
   }
 
   return tokens.join(" ");

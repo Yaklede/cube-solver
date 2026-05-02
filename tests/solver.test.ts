@@ -4,6 +4,7 @@ import { applyAlgorithm, applyMoves } from "@/core/moves";
 import { solveCubeState } from "@/core/solver";
 
 const README_EXAMPLE_APP_STATE = "DBBBURRFBRUDRRUDDLFLULFBDDRLLFFDRUBFRLUDLUBRFLUBFBFUDL";
+const REPORTED_SLICE_MOVE_APP_STATE = "RFLFUDUDFUBDRRLRLFLRRLFUDUBFBURDUBDUBLBRLDDFRFUDBBBLFL";
 
 describe("cube solver integration", () => {
   it("returns a library solution instead of the fallback for a simple scramble", async () => {
@@ -39,6 +40,15 @@ describe("cube solver integration", () => {
 
     expect(result.status).toBe("solution");
     expect(result.moves.some((move) => move.face === move.face.toLowerCase())).toBe(true);
+    expect(result.warnings).toEqual([]);
+    expect(applyMoves(result.stateString, result.moves)).toBe(SOLVED_STATE_STRING);
+  });
+
+  it("keeps solver slice moves when verifying scanned states", async () => {
+    const result = await solveCubeState(REPORTED_SLICE_MOVE_APP_STATE);
+
+    expect(result.status).toBe("solution");
+    expect(result.moves.some((move) => move.face === "M")).toBe(true);
     expect(result.warnings).toEqual([]);
     expect(applyMoves(result.stateString, result.moves)).toBe(SOLVED_STATE_STRING);
   });
