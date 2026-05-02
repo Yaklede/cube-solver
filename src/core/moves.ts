@@ -1,6 +1,6 @@
-import type { FaceName, Move, MoveFace, WideMoveFace } from "@/core/models";
+import type { FaceName, Move, MoveFace, SliceMoveFace, WideMoveFace } from "@/core/models";
 
-const MOVE_PATTERN = /^([URFDLBurfdlb])([2']?)$/;
+const MOVE_PATTERN = /^([URFDLBurfdlbMES])([2']?)$/;
 
 const FACE_INSTRUCTIONS: Record<FaceName, string> = {
   U: "윗면",
@@ -18,6 +18,12 @@ const WIDE_FACE_INSTRUCTIONS: Record<WideMoveFace, string> = {
   d: "아랫 두 층",
   l: "왼쪽 두 층",
   b: "뒷 두 층",
+};
+
+const SLICE_FACE_INSTRUCTIONS: Record<SliceMoveFace, string> = {
+  M: "좌우 가운데층",
+  E: "위아래 가운데층",
+  S: "앞뒤 가운데층",
 };
 
 interface StickerCoordinate {
@@ -52,6 +58,12 @@ const MOVE_ANGLE: Record<FaceName, number> = {
   B: 1,
 };
 
+const SLICE_MOVE_ANGLE: Record<SliceMoveFace, number> = {
+  M: 1,
+  E: 1,
+  S: -1,
+};
+
 export function parseMove(notation: string): Move {
   const match = notation.trim().match(MOVE_PATTERN);
   if (!match) {
@@ -79,7 +91,7 @@ export function parseAlgorithm(algorithm: string): Move[] {
 
 export function getMoveInstruction(notation: string): string {
   const move = parseMoveWithoutInstruction(notation);
-  const faceLabel = isWideMoveFace(move.face) ? WIDE_FACE_INSTRUCTIONS[move.face] : FACE_INSTRUCTIONS[move.face];
+  const faceLabel = getMoveFaceLabel(move.face);
   if (move.amount === 2) return `${faceLabel}을 180도 돌리세요.`;
   if (move.amount === -1) return `${faceLabel}을 반시계 방향으로 90도 돌리세요.`;
   return `${faceLabel}을 시계 방향으로 90도 돌리세요.`;
@@ -116,10 +128,9 @@ function applyQuarterTurn(stateString: string, face: MoveFace): string {
   const coordinates = buildCoordinates();
   const lookup = buildCoordinateLookup(coordinates);
   const next = stateString.split("");
-  const baseFace = getBaseMoveFace(face);
-  const axisIndex = axisForFace(baseFace);
+  const axisIndex = axisForMoveFace(face);
   const layers = getMoveLayers(face);
-  const angle = MOVE_ANGLE[baseFace];
+  const angle = getMoveAngle(face);
 
   coordinates.forEach((coordinate, sourceIndex) => {
     if (!layers.includes(coordinate.position[axisIndex])) return;
@@ -148,17 +159,40 @@ function parseMoveWithoutInstruction(notation: string): Pick<Move, "face" | "amo
   };
 }
 
-function getBaseMoveFace(face: MoveFace): FaceName {
+function getMoveFaceLabel(face: MoveFace): string {
+  if (isSliceMoveFace(face)) return SLICE_FACE_INSTRUCTIONS[face];
+  if (isWideMoveFace(face)) return WIDE_FACE_INSTRUCTIONS[face];
+  return FACE_INSTRUCTIONS[face];
+}
+
+function getBaseMoveFace(face: FaceName | WideMoveFace): FaceName {
   return face.toUpperCase() as FaceName;
+}
+
+function isSliceMoveFace(face: MoveFace): face is SliceMoveFace {
+  return face === "M" || face === "E" || face === "S";
 }
 
 function isWideMoveFace(face: MoveFace): face is WideMoveFace {
   return face === face.toLowerCase();
 }
 
+function axisForMoveFace(face: MoveFace): 0 | 1 | 2 {
+  if (face === "M") return 0;
+  if (face === "E") return 1;
+  if (face === "S") return 2;
+  return axisForFace(getBaseMoveFace(face));
+}
+
 function getMoveLayers(face: MoveFace): number[] {
+  if (isSliceMoveFace(face)) return [0];
   const outerLayer = layerForFace(getBaseMoveFace(face));
   return isWideMoveFace(face) ? [outerLayer, 0] : [outerLayer];
+}
+
+function getMoveAngle(face: MoveFace): number {
+  if (isSliceMoveFace(face)) return SLICE_MOVE_ANGLE[face];
+  return MOVE_ANGLE[getBaseMoveFace(face)];
 }
 
 function axisForFace(face: FaceName): 0 | 1 | 2 {

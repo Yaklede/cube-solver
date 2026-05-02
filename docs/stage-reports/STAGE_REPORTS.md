@@ -459,6 +459,23 @@
 남은 문제: 실제 카메라 환경에서 fallback 빈도와 오인식률은 추가 실측이 필요하다.
 다음 단계에서 할 일: PR 외부검증, merge.
 
+## 31단계
+
+[단계 결과 보고서]
+
+단계 번호: 31
+단계 이름: 솔버 slice move 검증 실패 수정
+이번 단계 목표: 정확히 스캔된 상태에서 solver가 `M2` 같은 가운데층 회전을 반환해도 앱 검증과 3D 풀이가 통과하도록 한다.
+완료한 작업: `M/E/S` slice move 타입, 파서, 한국어 설명, 상태 시뮬레이션, solver normalization, 3D 레이어 매핑을 추가했다. 사용자가 제공한 상태 문자열을 회귀 테스트로 추가했다.
+생성/수정한 파일: `src/core/models.ts`, `src/core/moves.ts`, `src/core/solver.ts`, `src/core/cube-visualization.ts`, `tests/moves.test.ts`, `tests/solver.test.ts`, `tests/cube-visualization.test.ts`, `TASK.md`, `docs/stage-reports/STAGE_REPORTS.md`, `.serena/memories/debug/solver-slice-move-drop.md`
+핵심 구현 내용: `M`은 좌우 가운데층, `E`는 위아래 가운데층, `S`는 앞뒤 가운데층의 0번 레이어를 회전한다. solver가 반환한 `M2 D M2 D2 M2 D M2 D'` 형태의 PLL을 더 이상 누락하지 않는다.
+실행 방법: `npm run dev` 후 풀이 안내 화면에 `RFLFUDUDFUBDRRLRLFLRRLFUDUBFBURDUBDUBLBRLDDFRFUDBBBLFL` 상태 문자열을 넣고 `풀이 생성`을 누른다.
+테스트 방법: `npm run test -- tests/moves.test.ts tests/solver.test.ts tests/cube-visualization.test.ts`, `npm run validate:all`
+테스트 결과: 대상 단위 테스트 3개 파일 19개 테스트 통과, 전체 검증 17개 파일 66개 테스트 통과, production build 통과.
+스크린샷 또는 확인 가능한 결과: 해당 상태 문자열은 `solution` 상태를 반환하고, `applyMoves(result.stateString, result.moves)`가 `SOLVED_STATE_STRING`에 도달한다.
+남은 문제: 3D viewer chunk size 경고는 기존과 동일하게 후속 최적화 대상이다.
+다음 단계에서 할 일: PR 외부검증, merge.
+
 ## 23단계
 
 [단계 결과 보고서]

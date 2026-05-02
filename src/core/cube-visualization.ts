@@ -1,4 +1,4 @@
-import type { FaceName, Move, MoveFace, WideMoveFace } from "@/core/models";
+import type { FaceName, Move, MoveFace, SliceMoveFace, WideMoveFace } from "@/core/models";
 
 export interface StickerPlacement {
   index: number;
@@ -29,6 +29,12 @@ const FACE_TURN_SIGN: Record<FaceName, number> = {
   B: 1,
 };
 
+const SLICE_TURN_SIGN: Record<SliceMoveFace, number> = {
+  M: 1,
+  E: 1,
+  S: -1,
+};
+
 export const VISUAL_FACE_COLORS: Record<FaceName, string> = {
   U: "#f8fafc",
   R: "#dc2626",
@@ -53,11 +59,18 @@ export function getBaseMoveFace(face: MoveFace): FaceName {
   return face.toUpperCase() as FaceName;
 }
 
+export function isSliceMoveFace(face: MoveFace): face is SliceMoveFace {
+  return face === "M" || face === "E" || face === "S";
+}
+
 export function isWideMoveFace(face: MoveFace): face is WideMoveFace {
   return face === face.toLowerCase();
 }
 
 export function getMoveAxis(face: MoveFace): 0 | 1 | 2 {
+  if (face === "M") return 0;
+  if (face === "E") return 1;
+  if (face === "S") return 2;
   const baseFace = getBaseMoveFace(face);
   if (baseFace === "R" || baseFace === "L") return 0;
   if (baseFace === "U" || baseFace === "D") return 1;
@@ -65,17 +78,20 @@ export function getMoveAxis(face: MoveFace): 0 | 1 | 2 {
 }
 
 export function getMoveLayer(face: MoveFace): number {
+  if (isSliceMoveFace(face)) return 0;
   const baseFace = getBaseMoveFace(face);
   return baseFace === "R" || baseFace === "U" || baseFace === "F" ? 1 : -1;
 }
 
 export function getMoveLayers(face: MoveFace): number[] {
+  if (isSliceMoveFace(face)) return [0];
   const outerLayer = getMoveLayer(face);
   return isWideMoveFace(face) ? [outerLayer, 0] : [outerLayer];
 }
 
 export function getMoveAngle(move: Move, direction: 1 | -1 = 1): number {
   const amount = move.amount === 2 ? 2 : move.amount === -1 ? -1 : 1;
+  if (isSliceMoveFace(move.face)) return SLICE_TURN_SIGN[move.face] * amount * direction * (Math.PI / 2);
   return FACE_TURN_SIGN[getBaseMoveFace(move.face)] * amount * direction * (Math.PI / 2);
 }
 

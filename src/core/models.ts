@@ -1,6 +1,7 @@
 export type FaceName = "U" | "R" | "F" | "D" | "L" | "B";
 export type WideMoveFace = "u" | "r" | "f" | "d" | "l" | "b";
-export type MoveFace = FaceName | WideMoveFace;
+export type SliceMoveFace = "M" | "E" | "S";
+export type MoveFace = FaceName | WideMoveFace | SliceMoveFace;
 
 export type StickerColor = "white" | "yellow" | "red" | "orange" | "blue" | "green";
 
